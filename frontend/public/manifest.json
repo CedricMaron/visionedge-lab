@@ -1,0 +1,17 @@
+{
+  "name": "VisionEdge Lab",
+  "short_name": "VisionEdge",
+  "description": "Multimodal computer-vision platform control surface",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080b12",
+  "theme_color": "#080b12",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
