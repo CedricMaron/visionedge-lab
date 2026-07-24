@@ -106,7 +106,7 @@ class OnnxRuntimeBackend(BaseDetectionBackend):
             boxes = scale_boxes(boxes, meta)
 
         dets: list[Detection] = []
-        for (x1, y1, x2, y2), score, cid in zip(boxes, scores, class_ids):
+        for (x1, y1, x2, y2), score, cid in zip(boxes, scores, class_ids, strict=False):
             cid_i = int(cid)
             dets.append(
                 Detection(
@@ -153,7 +153,7 @@ class OnnxRuntimeBackend(BaseDetectionBackend):
                 inferenceBackend=f"{self.backend_name}:{self.provider}",
                 modelName=self.model_id, modelVersion=self.model_version,
             )
-            for b, s, c in zip(boxes, scores, class_ids)
+            for b, s, c in zip(boxes, scores, class_ids, strict=False)
         ]
         t3 = time.perf_counter()
         timings = {

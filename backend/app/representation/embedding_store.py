@@ -111,7 +111,7 @@ class EmbeddingStore:
         return path
 
     @classmethod
-    def load(cls, path: str) -> "EmbeddingStore":
+    def load(cls, path: str) -> EmbeddingStore:
         """Load a store previously written by :meth:`save`."""
         import json
 

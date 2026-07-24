@@ -29,7 +29,7 @@ class AppState:
     db: Database
     detection: DetectionManager
     metrics: RollingMetrics
-    vlm: "VLMManager | None" = None
+    vlm: VLMManager | None = None
     startup_warnings: list[str] = field(default_factory=list)
 
 

@@ -96,7 +96,7 @@ class OpenVINOBackend(BaseDetectionBackend):
                 inferenceBackend=f"{self.backend_name}:{self.device}",
                 modelName=self.model_id, modelVersion=self.model_version,
             )
-            for b, s, c in zip(boxes, scores, class_ids)
+            for b, s, c in zip(boxes, scores, class_ids, strict=False)
         ]
 
     def close(self) -> None:

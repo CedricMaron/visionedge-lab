@@ -80,7 +80,7 @@ class JobRecord:
         return d
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "JobRecord":
+    def from_dict(cls, data: Dict[str, Any]) -> JobRecord:
         data = dict(data)
         data["state"] = JobState(data.get("state", JobState.QUEUED.value))
         # Drop unexpected keys defensively.

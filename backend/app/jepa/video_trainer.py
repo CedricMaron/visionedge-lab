@@ -17,7 +17,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, Optional
 
-import numpy as np
 
 from app.core.logging import get_logger
 from app.jepa.collapse_monitor import collapse_metrics, collapse_warning
