@@ -56,10 +56,11 @@ def create_app() -> FastAPI:
         return JSONResponse(status_code=400, content={"error": exc.user_message})
 
     # Routers
-    from app.api import detection, meta
+    from app.api import advisor, detection, meta
 
     app.include_router(meta.router)
     app.include_router(detection.router)
+    app.include_router(advisor.router)
 
     # VLM router is optional — present only when the package imports cleanly.
     try:
