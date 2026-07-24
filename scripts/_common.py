@@ -18,7 +18,7 @@ import hashlib
 import json
 import platform
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -52,7 +52,7 @@ def ok(msg: str) -> None:
     print(f"[ ok ] {msg}")
 
 
-def die(msg: str, code: int = 1) -> "None":
+def die(msg: str, code: int = 1) -> None:
     """Print a clean, actionable error (no traceback) and exit non-zero."""
     print(f"[error] {msg}", file=sys.stderr)
     raise SystemExit(code)
@@ -81,7 +81,7 @@ def human_size(num_bytes: int) -> str:
 
 
 def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def write_sidecar(model_path: Path, metadata: dict[str, Any]) -> Path:

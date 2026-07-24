@@ -62,7 +62,7 @@ def cmd_list() -> int:
         )
         print(f"{m.model_id:<20}{'detection':<10}{status:<14}{size:<12}{m.local_path}")
     for v in reg.vlm_models:
-        status = "builtin" if v.model_source == "builtin" else "opt-in (transformers)"
+        status = "builtin" if v.model_source == "builtin" else "opt-in"
         print(f"{v.model_id:<20}{'vlm':<10}{status:<14}{'-':<12}{v.model_source}")
     print("\nInstall a detection model with: --install <model_id>")
     print("VLM models are opt-in via transformers (see backend/requirements/vlm.txt).")

@@ -68,9 +68,8 @@ def _build_calibration_reader(calib_dir: Path, input_name: str, size: int, limit
     """A CalibrationDataReader yielding letterboxed tensors from real images."""
     import cv2
     import numpy as np
-    from onnxruntime.quantization import CalibrationDataReader
-
     from app.inference.preprocess import letterbox, to_model_input
+    from onnxruntime.quantization import CalibrationDataReader
 
     exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
     images = sorted(p for p in calib_dir.rglob("*") if p.suffix.lower() in exts)

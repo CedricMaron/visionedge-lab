@@ -1,0 +1,9 @@
+# Repo-root ruff config (applies to scripts/ and anything outside backend/,
+# which has its own pyproject.toml). CLI scripts deliberately catch broad
+# exceptions to emit clean, traceback-free error messages.
+line-length = 110
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]

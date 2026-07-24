@@ -21,3 +21,4 @@ calibration/*
 !calibration/.gitkeep
 # os
 .DS_Store
+models/*.onnx.json

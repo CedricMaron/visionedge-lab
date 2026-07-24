@@ -46,7 +46,6 @@ def main(argv: list[str] | None = None) -> int:
 
     import cv2
     import numpy as np
-
     from app.inference.preprocess import letterbox, to_model_input
 
     all_imgs = sorted(p for p in args.images.rglob("*") if p.suffix.lower() in IMG_EXTS)
