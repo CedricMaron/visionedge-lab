@@ -1,0 +1,23 @@
+# python
+backend/.venv/
+__pycache__/
+*.pyc
+*.db
+.env
+# node
+frontend/node_modules/
+frontend/dist/
+# models & data (large / regenerable)
+models/*.onnx
+models/*.pt
+models/*.engine
+models/*.xml
+models/*.bin
+benchmark-data/*.jpg
+benchmark-data/*.png
+benchmark-data/*.mp4
+!benchmark-data/.gitkeep
+calibration/*
+!calibration/.gitkeep
+# os
+.DS_Store
