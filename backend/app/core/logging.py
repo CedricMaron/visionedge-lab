@@ -36,7 +36,7 @@ def configure_logging(json_output: bool = True, level: str = "INFO") -> None:
         processors=processors,
         wrapper_class=structlog.make_filtering_bound_logger(getattr(logging, level, logging.INFO)),
         logger_factory=structlog.PrintLoggerFactory(),
-        cache_log_level_on_first_use=True,
+        cache_logger_on_first_use=True,
     )
     _configured = True
 
