@@ -11,12 +11,21 @@
       "format": "onnx",
       "precision": "fp32",
       "input_size": 640,
-      "supported_runtimes": ["onnxruntime-cpu", "onnxruntime-cuda", "openvino", "tensorrt"],
-      "supported_devices": ["cpu", "cuda", "intel-igpu"],
+      "supported_runtimes": [
+        "onnxruntime-cpu",
+        "onnxruntime-cuda",
+        "openvino",
+        "tensorrt"
+      ],
+      "supported_devices": [
+        "cpu",
+        "cuda",
+        "intel-igpu"
+      ],
       "labels": "coco80",
       "file_name": "yolov8n.onnx",
-      "file_size_bytes": 12824056,
-      "checksum_sha256": "937fe35472df312e03bf5836c1e62698e269dcc0352fe5704740cb38388462b4",
+      "file_size_bytes": 12851139,
+      "checksum_sha256": "2a8df06a8387509e51e233f19d2ce839af255ae008cf03c982415ffe6f236030",
       "expected_memory_mb": 300,
       "download_url": null,
       "local_path": "models/yolov8n.onnx",
@@ -37,8 +46,13 @@
       "format": "pytorch",
       "precision": "fp32",
       "input_size": 640,
-      "supported_runtimes": ["pytorch"],
-      "supported_devices": ["cpu", "cuda"],
+      "supported_runtimes": [
+        "pytorch"
+      ],
+      "supported_devices": [
+        "cpu",
+        "cuda"
+      ],
       "labels": "coco80",
       "file_name": "yolov8n.pt",
       "file_size_bytes": 6549796,
@@ -63,8 +77,16 @@
       "format": "onnx",
       "precision": "fp32",
       "input_size": 640,
-      "supported_runtimes": ["onnxruntime-cpu", "onnxruntime-cuda", "openvino", "tensorrt"],
-      "supported_devices": ["cpu", "cuda"],
+      "supported_runtimes": [
+        "onnxruntime-cpu",
+        "onnxruntime-cuda",
+        "openvino",
+        "tensorrt"
+      ],
+      "supported_devices": [
+        "cpu",
+        "cuda"
+      ],
       "labels": "coco80",
       "file_name": "yolov8s.onnx",
       "file_size_bytes": null,
@@ -89,8 +111,16 @@
       "format": "onnx",
       "precision": "fp32",
       "input_size": 640,
-      "supported_runtimes": ["onnxruntime-cpu", "onnxruntime-cuda", "openvino", "tensorrt"],
-      "supported_devices": ["cpu", "cuda"],
+      "supported_runtimes": [
+        "onnxruntime-cpu",
+        "onnxruntime-cuda",
+        "openvino",
+        "tensorrt"
+      ],
+      "supported_devices": [
+        "cpu",
+        "cuda"
+      ],
       "labels": "coco80",
       "file_name": "yolov8m.onnx",
       "file_size_bytes": null,
@@ -112,7 +142,11 @@
       "display_name": "Mock VLM (deterministic, tests/demo)",
       "family": "mock",
       "version": "1.0",
-      "task_capabilities": ["describe", "vqa", "structured"],
+      "task_capabilities": [
+        "describe",
+        "vqa",
+        "structured"
+      ],
       "image_support": true,
       "multi_image_support": true,
       "video_support": true,
@@ -120,8 +154,12 @@
       "context_length": 4096,
       "estimated_vram_mb": 0,
       "supported_quantization": [],
-      "supported_runtimes": ["python"],
-      "supported_devices": ["cpu"],
+      "supported_runtimes": [
+        "python"
+      ],
+      "supported_devices": [
+        "cpu"
+      ],
       "model_source": "builtin",
       "license": "MIT (this project)",
       "checksum_sha256": null,
@@ -133,16 +171,29 @@
       "display_name": "SmolVLM-256M-Instruct (local, opt-in)",
       "family": "smolvlm",
       "version": "256M-Instruct",
-      "task_capabilities": ["describe", "vqa"],
+      "task_capabilities": [
+        "describe",
+        "vqa"
+      ],
       "image_support": true,
       "multi_image_support": true,
       "video_support": false,
       "structured_output_support": true,
       "context_length": 8192,
       "estimated_vram_mb": 900,
-      "supported_quantization": ["fp16", "bf16", "int8", "q4"],
-      "supported_runtimes": ["transformers"],
-      "supported_devices": ["cpu", "cuda"],
+      "supported_quantization": [
+        "fp16",
+        "bf16",
+        "int8",
+        "q4"
+      ],
+      "supported_runtimes": [
+        "transformers"
+      ],
+      "supported_devices": [
+        "cpu",
+        "cuda"
+      ],
       "model_source": "HuggingFaceTB/SmolVLM-256M-Instruct",
       "license": "Apache-2.0",
       "checksum_sha256": null,
@@ -154,21 +205,36 @@
       "display_name": "Qwen2.5-VL-3B-Instruct (server/GPU, opt-in)",
       "family": "qwen-vl",
       "version": "2.5-3B-Instruct",
-      "task_capabilities": ["describe", "vqa", "video", "structured"],
+      "task_capabilities": [
+        "describe",
+        "vqa",
+        "video",
+        "structured"
+      ],
       "image_support": true,
       "multi_image_support": true,
       "video_support": true,
       "structured_output_support": true,
       "context_length": 32768,
       "estimated_vram_mb": 7000,
-      "supported_quantization": ["fp16", "bf16", "int8", "q4"],
-      "supported_runtimes": ["transformers", "vllm"],
-      "supported_devices": ["cuda"],
+      "supported_quantization": [
+        "fp16",
+        "bf16",
+        "int8",
+        "q4"
+      ],
+      "supported_runtimes": [
+        "transformers",
+        "vllm"
+      ],
+      "supported_devices": [
+        "cuda"
+      ],
       "model_source": "Qwen/Qwen2.5-VL-3B-Instruct",
       "license": "Apache-2.0",
       "checksum_sha256": null,
       "deployment_status": "not_installed",
-      "nature": "real integration; requires GPU. Exceeds 6GB VRAM at fp16 alongside detector — quantize or run on server."
+      "nature": "real integration; requires GPU. Exceeds 6GB VRAM at fp16 alongside detector \u2014 quantize or run on server."
     }
   ]
 }

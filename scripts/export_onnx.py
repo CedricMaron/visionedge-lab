@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import shutil
+import tempfile
 from pathlib import Path
 
 import _common as C
@@ -65,15 +66,37 @@ def main(argv: list[str] | None = None) -> int:
     C.info(f"exporting {args.model} (weights={weights_name}) to ONNX "
            f"opset={args.opset} imgsz={args.size}")
 
-    # Ultralytics writes the .onnx next to the .pt weights. Point it at models/.
-    try:
-        model = YOLO(str(weights_path))
-        exported = model.export(format="onnx", imgsz=args.size, opset=args.opset, dynamic=False)
-    except Exception as exc:  # noqa: BLE001
-        C.die(f"ultralytics export failed: {exc}")
+    # Ultralytics writes the exported .onnx NEXT TO the weights it loads. To avoid ever
+    # clobbering models/*.onnx (e.g. the committed reference), we export inside a temp dir
+    # against a copy of the weights, then move the result to --output.
+    with tempfile.TemporaryDirectory(prefix="ve_export_") as tmp:
+        tmp_dir = Path(tmp)
+        try:
+            if weights_path.exists():
+                tmp_weights = tmp_dir / weights_name
+                shutil.copyfile(weights_path, tmp_weights)
+                weights_src = str(tmp_weights)
+            else:
+                # Not present locally: let ultralytics download by bare name, then stash a
+                # copy into models/ for reuse and continue the export from the temp copy.
+                dl_model = YOLO(weights_name)
+                ckpt = Path(getattr(dl_model, "ckpt_path", weights_name))
+                if ckpt.exists() and not weights_path.exists():
+                    shutil.copyfile(ckpt, weights_path)
+                    C.ok(f"cached weights -> {weights_path} "
+                         f"({C.human_size(C.file_size(weights_path))})")
+                tmp_weights = tmp_dir / weights_name
+                shutil.copyfile(weights_path if weights_path.exists() else ckpt, tmp_weights)
+                weights_src = str(tmp_weights)
 
-    exported_path = Path(exported)
-    if exported_path.resolve() != output:
+            model = YOLO(weights_src)
+            exported = model.export(format="onnx", imgsz=args.size, opset=args.opset,
+                                    dynamic=False)
+        except Exception as exc:  # noqa: BLE001
+            C.die(f"ultralytics export failed: {exc}")
+
+        exported_path = Path(exported)
+        output.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(exported_path), str(output))
     C.ok(f"wrote {output} ({C.human_size(C.file_size(output))})")
 
