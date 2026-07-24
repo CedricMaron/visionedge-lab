@@ -1,0 +1,9 @@
+# NVIDIA CUDA acceleration (opt-in). Install AFTER base.txt.
+# Requires a CUDA-capable GPU + matching driver. onnxruntime-gpu provides the
+# CUDAExecutionProvider; pick the build matching your CUDA/cuDNN.
+# NOTE: uninstall plain onnxruntime first to avoid provider conflicts.
+onnxruntime-gpu>=1.17
+# PyTorch CUDA build — install from the pytorch index for your CUDA version, e.g.:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+torch
+torchvision

@@ -1,0 +1,6 @@
+# JEPA / representation experiments (opt-in). torch is required for training.
+torch
+torchvision
+# Optional dataset + visualization extras:
+# scikit-learn>=1.3   # t-SNE, extra metrics (PCA works without it)
+# umap-learn>=0.5     # UMAP projection

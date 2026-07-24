@@ -1,0 +1,6 @@
+# NVIDIA TensorRT (opt-in). Engines are GPU/driver-specific and must be built locally:
+#   python scripts/build_tensorrt.py --input models/yolov8n.onnx --precision fp16
+# TensorRT is usually installed via NVIDIA's apt repo or the tensorrt pip wheel that
+# matches your CUDA. pycuda is needed for the execution bindings.
+tensorrt
+pycuda

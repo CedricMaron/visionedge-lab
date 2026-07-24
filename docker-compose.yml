@@ -1,0 +1,39 @@
+# VisionEdge Lab — local orchestration.
+# CPU-first by default. GPU is opt-in (uncomment the deploy block + use the cuda Dockerfile).
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: visionedge-backend:cpu
+    ports:
+      - "8000:8000"
+    environment:
+      - VE_HOST=0.0.0.0
+      - VE_PORT=8000
+      - VE_LOG_JSON=true
+      - VE_DEFAULT_MODEL_ID=yolov8n-onnx
+      - VE_DEFAULT_VLM_ID=mock-vlm
+    volumes:
+      - ./models:/app/models:ro
+      - ./benchmark-data:/app/benchmark-data
+    # --- GPU (opt-in): requires nvidia-container-toolkit ---
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: visionedge-frontend:latest
+    ports:
+      - "5173:80"
+    environment:
+      - VITE_API_BASE=http://localhost:8000
+    depends_on:
+      - backend

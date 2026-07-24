@@ -1,0 +1,7 @@
+# Local vision-language models (opt-in). Enables SmolVLM / Qwen2.5-VL via transformers.
+# Small models (SmolVLM-256M) can run on CPU but are slow and memory-hungry (<4GB RAM risky).
+transformers>=4.44
+pillow>=10.0
+accelerate>=0.30
+# For 4-bit / 8-bit weight quantization on CUDA:
+# bitsandbytes>=0.43

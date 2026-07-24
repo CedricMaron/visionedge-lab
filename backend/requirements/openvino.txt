@@ -1,0 +1,3 @@
+# Intel OpenVINO acceleration (opt-in). Best on Intel CPU / iGPU.
+# After install, convert a model:  python scripts/convert_openvino.py --input models/yolov8n.onnx
+openvino>=2024.0
