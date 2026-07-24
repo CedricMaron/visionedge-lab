@@ -16,17 +16,18 @@ in-process manager deliberately does not implement.
 """
 from __future__ import annotations
 
+import builtins
 import json
 import os
 import threading
 from collections import deque
-from typing import Callable, Deque, Dict, List, Optional
+from collections.abc import Callable
 
 from app.core.logging import get_logger
 from app.jobs.state import (
+    TERMINAL_STATES,
     JobRecord,
     JobState,
-    TERMINAL_STATES,
     assert_transition,
     can_transition,
 )
@@ -43,9 +44,9 @@ class JobPlan:
 
     def __init__(
         self,
-        step_fn: Callable[[int], Dict[str, float]],
+        step_fn: Callable[[int], dict[str, float]],
         total_steps: int,
-        checkpoint_fn: Optional[Callable[[int], Optional[str]]] = None,
+        checkpoint_fn: Callable[[int], str | None] | None = None,
         checkpoint_every: int = 0,
     ) -> None:
         self.step_fn = step_fn
@@ -60,16 +61,16 @@ class JobManager:
     def __init__(
         self,
         factory: JobFactory,
-        persist_path: Optional[str] = None,
+        persist_path: str | None = None,
         event_buffer: int = 200,
     ) -> None:
         self._factory = factory
         self._persist_path = persist_path
         self._event_buffer = int(event_buffer)
         self._lock = threading.RLock()
-        self._records: Dict[str, JobRecord] = {}
-        self._workers: Dict[str, JobWorker] = {}
-        self._events: Dict[str, Deque[str]] = {}
+        self._records: dict[str, JobRecord] = {}
+        self._workers: dict[str, JobWorker] = {}
+        self._events: dict[str, deque[str]] = {}
 
     # --- persistence ---------------------------------------------------------
     def _persist(self) -> None:
@@ -93,7 +94,7 @@ class JobManager:
         if not self._persist_path or not os.path.exists(self._persist_path):
             return
         with self._lock:
-            with open(self._persist_path, "r", encoding="utf-8") as fh:
+            with open(self._persist_path, encoding="utf-8") as fh:
                 data = json.load(fh)
             for jid, raw in data.items():
                 rec = JobRecord.from_dict(raw)
@@ -112,7 +113,7 @@ class JobManager:
             self._events.setdefault(job_id, deque(maxlen=self._event_buffer)).append(message)
 
     def _on_progress(self, job_id: str):
-        def cb(step: int, total: int, metrics: Dict[str, float]) -> None:
+        def cb(step: int, total: int, metrics: dict[str, float]) -> None:
             with self._lock:
                 rec = self._records.get(job_id)
                 if rec is None:
@@ -127,7 +128,7 @@ class JobManager:
         return cb
 
     def _on_state(self, job_id: str):
-        def cb(state: JobState, error: Optional[str]) -> None:
+        def cb(state: JobState, error: str | None) -> None:
             import time
 
             with self._lock:
@@ -142,7 +143,7 @@ class JobManager:
         return cb
 
     # --- public API ----------------------------------------------------------
-    def submit(self, job_id: str, kind: str, params: Optional[Dict] = None) -> JobRecord:
+    def submit(self, job_id: str, kind: str, params: dict | None = None) -> JobRecord:
         """Register a new queued job. Does not start it."""
         with self._lock:
             if job_id in self._records:
@@ -201,26 +202,26 @@ class JobManager:
         if worker:
             worker.stop()
 
-    def wait(self, job_id: str, timeout: Optional[float] = None) -> None:
+    def wait(self, job_id: str, timeout: float | None = None) -> None:
         """Block until the job's worker thread exits (test/CLI convenience)."""
         worker = self._workers.get(job_id)
         if worker:
             worker.join(timeout)
 
-    def get(self, job_id: str) -> Optional[JobRecord]:
+    def get(self, job_id: str) -> JobRecord | None:
         with self._lock:
             return self._records.get(job_id)
 
-    def list(self) -> List[JobRecord]:
+    def list(self) -> builtins.list[JobRecord]:
         with self._lock:
             return list(self._records.values())
 
-    def events(self, job_id: str) -> List[str]:
+    def events(self, job_id: str) -> builtins.list[str]:
         """Snapshot of the bounded event stream for a job."""
         with self._lock:
             return list(self._events.get(job_id, deque()))
 
-    def recover(self, job_id: str) -> Optional[str]:
+    def recover(self, job_id: str) -> str | None:
         """Checkpoint-recovery hook.
 
         Returns the checkpoint path recorded for the job, if any, so a caller can build a

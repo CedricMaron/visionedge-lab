@@ -15,7 +15,6 @@ module has no torchvision dependency and never downloads anything at import time
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional
 
 import numpy as np
 
@@ -42,7 +41,7 @@ class ImageTrainConfig:
 class LightweightIJepaTrainer:
     """Trainer holding the online encoder, EMA target encoder and predictor."""
 
-    def __init__(self, config: Optional[ImageTrainConfig] = None) -> None:
+    def __init__(self, config: ImageTrainConfig | None = None) -> None:
         import torch  # lazy
 
         from app.jepa.context_encoder import ContextEncoder
@@ -78,7 +77,7 @@ class LightweightIJepaTrainer:
             batch_size, vit.in_channels, vit.image_size, vit.image_size, generator=g
         ).to(self.device)
 
-    def train_step(self, batch) -> Dict[str, float]:
+    def train_step(self, batch) -> dict[str, float]:
         """Run one I-JEPA training step on an image batch.
 
         Args:

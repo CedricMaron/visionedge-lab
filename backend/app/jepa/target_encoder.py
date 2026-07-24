@@ -39,10 +39,10 @@ class TargetEncoder(_Base):
         import torch
 
         with torch.no_grad():
-            for t, o in zip(self.encoder.parameters(), online.parameters()):
+            for t, o in zip(self.encoder.parameters(), online.parameters(), strict=False):
                 t.copy_(o)
                 t.requires_grad_(False)
-            for t, o in zip(self.encoder.buffers(), online.buffers()):
+            for t, o in zip(self.encoder.buffers(), online.buffers(), strict=False):
                 t.copy_(o)
 
     def ema_update(self, online: ContextEncoder, momentum: float) -> None:

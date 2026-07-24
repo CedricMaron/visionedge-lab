@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import threading
 import traceback
-from typing import Callable, Dict, Optional
+from collections.abc import Callable
 
 from app.core.logging import get_logger
 from app.jobs.state import JobState
@@ -21,9 +21,9 @@ from app.jobs.state import JobState
 logger = get_logger("jobs.worker")
 
 # Callback signatures.
-StepFn = Callable[[int], Dict[str, float]]
-ProgressCb = Callable[[int, int, Dict[str, float]], None]
-StateCb = Callable[[JobState, Optional[str]], None]
+StepFn = Callable[[int], dict[str, float]]
+ProgressCb = Callable[[int, int, dict[str, float]], None]
+StateCb = Callable[[JobState, str | None], None]
 EventCb = Callable[[str], None]
 
 
@@ -38,7 +38,7 @@ class JobWorker:
         on_progress: ProgressCb,
         on_state: StateCb,
         on_event: EventCb,
-        checkpoint_fn: Optional[Callable[[int], Optional[str]]] = None,
+        checkpoint_fn: Callable[[int], str | None] | None = None,
         checkpoint_every: int = 0,
     ) -> None:
         self.job_id = job_id
@@ -50,7 +50,7 @@ class JobWorker:
         self.checkpoint_fn = checkpoint_fn
         self.checkpoint_every = int(checkpoint_every)
 
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._pause = threading.Event()  # set => paused
         self._stop = threading.Event()  # set => stop requested
         self._resume = threading.Event()  # used to wake from pause
@@ -75,7 +75,7 @@ class JobWorker:
         self._stop.set()
         self._resume.set()  # wake if paused so it can observe the stop
 
-    def join(self, timeout: Optional[float] = None) -> None:
+    def join(self, timeout: float | None = None) -> None:
         if self._thread is not None:
             self._thread.join(timeout)
 

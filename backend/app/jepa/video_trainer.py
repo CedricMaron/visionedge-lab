@@ -15,8 +15,6 @@ module always imports.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional
-
 
 from app.core.logging import get_logger
 from app.jepa.collapse_monitor import collapse_metrics, collapse_warning
@@ -42,7 +40,7 @@ class VideoTrainConfig:
 class LightweightVideoJepaTrainer:
     """Temporal predictor trainer over tiny synthetic clips."""
 
-    def __init__(self, config: Optional[VideoTrainConfig] = None) -> None:
+    def __init__(self, config: VideoTrainConfig | None = None) -> None:
         import torch
         import torch.nn as nn
 
@@ -100,7 +98,7 @@ class LightweightVideoJepaTrainer:
             batch_size, t, vit.in_channels, vit.image_size, vit.image_size, generator=g
         ).to(self.device)
 
-    def train_step(self, clip) -> Dict[str, float]:
+    def train_step(self, clip) -> dict[str, float]:
         """One temporal-prediction step.
 
         Args:

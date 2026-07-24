@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import asdict, is_dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 def _config_to_dict(config: Any) -> Any:
@@ -26,12 +26,12 @@ def _config_to_dict(config: Any) -> Any:
 
 
 def build_checkpoint(
-    model_states: Dict[str, Any],
+    model_states: dict[str, Any],
     epoch: int,
     config: Any = None,
-    metrics: Optional[Dict[str, float]] = None,
-    extra: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    metrics: dict[str, float] | None = None,
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Assemble a checkpoint dict (does not touch disk).
 
     Args:
@@ -52,7 +52,7 @@ def build_checkpoint(
     }
 
 
-def save_checkpoint(path: str, checkpoint: Dict[str, Any]) -> str:
+def save_checkpoint(path: str, checkpoint: dict[str, Any]) -> str:
     """Persist a checkpoint dict with ``torch.save``. Returns the path written."""
     import torch  # guarded lazy import
 
@@ -60,7 +60,7 @@ def save_checkpoint(path: str, checkpoint: Dict[str, Any]) -> str:
     return path
 
 
-def load_checkpoint(path: str, map_location: str = "cpu") -> Dict[str, Any]:
+def load_checkpoint(path: str, map_location: str = "cpu") -> dict[str, Any]:
     """Load a checkpoint dict with ``torch.load`` (defaults to CPU mapping)."""
     import torch
 
@@ -73,11 +73,11 @@ def load_checkpoint(path: str, map_location: str = "cpu") -> Dict[str, Any]:
 
 def save_training_checkpoint(
     path: str,
-    model_states: Dict[str, Any],
+    model_states: dict[str, Any],
     epoch: int,
     config: Any = None,
-    metrics: Optional[Dict[str, float]] = None,
-    extra: Optional[Dict[str, Any]] = None,
+    metrics: dict[str, float] | None = None,
+    extra: dict[str, Any] | None = None,
 ) -> str:
     """Convenience: build + save in one call."""
     ckpt = build_checkpoint(model_states, epoch, config=config, metrics=metrics, extra=extra)

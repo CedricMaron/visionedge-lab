@@ -13,7 +13,6 @@ never invents benchmark figures.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 # Placement values mirror ExecutionLocation-ish strings used across the UI.
 PC = "pc_local"
@@ -30,7 +29,7 @@ class StagePlacement:
     stage: str
     location: str
     reason: str
-    measured_tradeoff: Optional[str] = None
+    measured_tradeoff: str | None = None
 
 
 @dataclass
@@ -38,10 +37,10 @@ class ExecutionPlan:
     """A full plan: placement per stage plus the preset name and notes."""
 
     preset: str
-    placements: List[StagePlacement] = field(default_factory=list)
-    notes: List[str] = field(default_factory=list)
+    placements: list[StagePlacement] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
 
-    def as_dict(self) -> Dict[str, Dict[str, Optional[str]]]:
+    def as_dict(self) -> dict[str, dict[str, str | None]]:
         return {
             p.stage: {
                 "location": p.location,
@@ -52,7 +51,7 @@ class ExecutionPlan:
         }
 
 
-def _tradeoff(metrics: Optional[Dict[str, str]], key: str) -> Optional[str]:
+def _tradeoff(metrics: dict[str, str] | None, key: str) -> str | None:
     """Fetch a measured tradeoff string for ``key`` from caller metrics, or None."""
     if not metrics:
         return None
@@ -73,8 +72,8 @@ class ExecutionPlanner:
 
     def __init__(
         self,
-        capabilities: Optional[Dict] = None,
-        metrics: Optional[Dict[str, str]] = None,
+        capabilities: dict | None = None,
+        metrics: dict[str, str] | None = None,
     ) -> None:
         self.caps = dict(capabilities or {})
         self.metrics = dict(metrics or {})
@@ -168,7 +167,7 @@ class ExecutionPlanner:
 # Each preset returns a full ExecutionPlan. Presets encode an intent, not a claim of
 # optimality; the reason strings say what is being traded.
 
-def _plan(preset: str, mapping: Dict[str, tuple], metrics: Optional[Dict[str, str]]) -> ExecutionPlan:
+def _plan(preset: str, mapping: dict[str, tuple], metrics: dict[str, str] | None) -> ExecutionPlan:
     plan = ExecutionPlan(preset=preset)
     for stage in STAGES:
         loc, reason = mapping[stage]
@@ -178,7 +177,7 @@ def _plan(preset: str, mapping: Dict[str, tuple], metrics: Optional[Dict[str, st
     return plan
 
 
-def preset_max_speed(metrics: Optional[Dict[str, str]] = None) -> ExecutionPlan:
+def preset_max_speed(metrics: dict[str, str] | None = None) -> ExecutionPlan:
     """Everything on the fastest available local compute; minimise round trips."""
     return _plan(
         "max_speed",
@@ -192,7 +191,7 @@ def preset_max_speed(metrics: Optional[Dict[str, str]] = None) -> ExecutionPlan:
     )
 
 
-def preset_balanced(metrics: Optional[Dict[str, str]] = None) -> ExecutionPlan:
+def preset_balanced(metrics: dict[str, str] | None = None) -> ExecutionPlan:
     """Latency-critical stages local, expensive infrequent VLM remote."""
     return _plan(
         "balanced",
@@ -206,7 +205,7 @@ def preset_balanced(metrics: Optional[Dict[str, str]] = None) -> ExecutionPlan:
     )
 
 
-def preset_max_quality(metrics: Optional[Dict[str, str]] = None) -> ExecutionPlan:
+def preset_max_quality(metrics: dict[str, str] | None = None) -> ExecutionPlan:
     """Prefer the most capable (remote) models; trade latency for quality."""
     return _plan(
         "max_quality",
@@ -220,7 +219,7 @@ def preset_max_quality(metrics: Optional[Dict[str, str]] = None) -> ExecutionPla
     )
 
 
-def preset_battery_saver(metrics: Optional[Dict[str, str]] = None) -> ExecutionPlan:
+def preset_battery_saver(metrics: dict[str, str] | None = None) -> ExecutionPlan:
     """Push heavy compute off the battery-powered device."""
     return _plan(
         "battery_saver",
@@ -234,7 +233,7 @@ def preset_battery_saver(metrics: Optional[Dict[str, str]] = None) -> ExecutionP
     )
 
 
-def preset_low_bandwidth(metrics: Optional[Dict[str, str]] = None) -> ExecutionPlan:
+def preset_low_bandwidth(metrics: dict[str, str] | None = None) -> ExecutionPlan:
     """Minimise bytes over the network; keep frames on-device, send only text."""
     return _plan(
         "low_bandwidth",

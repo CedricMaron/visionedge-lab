@@ -17,16 +17,17 @@ the selected records too.
 """
 from __future__ import annotations
 
-from typing import Any, List, Optional, Sequence, Tuple
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 
 from app.temporal.scene_change import scene_change_score
 
-FrameRecord = Tuple[np.ndarray, float, Optional[Sequence[Any]]]
+FrameRecord = tuple[np.ndarray, float, Sequence[Any] | None]
 
 
-def uniform_indices(n_frames: int, n: int) -> List[int]:
+def uniform_indices(n_frames: int, n: int) -> list[int]:
     """Evenly spaced indices selecting ``n`` of ``n_frames`` frames."""
     if n_frames <= 0 or n <= 0:
         return []
@@ -35,12 +36,12 @@ def uniform_indices(n_frames: int, n: int) -> List[int]:
     return sorted(set(int(i) for i in idx))
 
 
-def motion_indices(frames: Sequence[np.ndarray], threshold: float = 0.05) -> List[int]:
+def motion_indices(frames: Sequence[np.ndarray], threshold: float = 0.05) -> list[int]:
     """Indices where mean-abs-diff from the last kept frame exceeds ``threshold``.
 
     The first frame is always kept as a reference.
     """
-    kept: List[int] = []
+    kept: list[int] = []
     ref = None
     for i, f in enumerate(frames):
         cur = np.asarray(f, dtype=np.float64)
@@ -62,10 +63,10 @@ def motion_indices(frames: Sequence[np.ndarray], threshold: float = 0.05) -> Lis
 
 def scene_change_indices(
     frames: Sequence[np.ndarray], threshold: float = 0.15, method: str = "mad"
-) -> List[int]:
+) -> list[int]:
     """Indices flagged as scene changes relative to the last kept frame."""
-    kept: List[int] = []
-    ref_idx: Optional[int] = None
+    kept: list[int] = []
+    ref_idx: int | None = None
     for i, f in enumerate(frames):
         if ref_idx is None:
             kept.append(i)
@@ -77,7 +78,7 @@ def scene_change_indices(
     return kept
 
 
-def _detection_signature(dets: Optional[Sequence[Any]]) -> Tuple[int, tuple]:
+def _detection_signature(dets: Sequence[Any] | None) -> tuple[int, tuple]:
     """A cheap comparable signature: (count, sorted class ids)."""
     if not dets:
         return (0, tuple())
@@ -90,12 +91,12 @@ def _detection_signature(dets: Optional[Sequence[Any]]) -> Tuple[int, tuple]:
     return (len(dets), tuple(sorted(str(c) for c in class_ids)))
 
 
-def detection_event_indices(records: Sequence[FrameRecord]) -> List[int]:
+def detection_event_indices(records: Sequence[FrameRecord]) -> list[int]:
     """Indices where the detection signature changes from the previous frame.
 
     The first frame is always kept. Records are ``(frame, ts, detections)``.
     """
-    kept: List[int] = []
+    kept: list[int] = []
     prev_sig = None
     for i, rec in enumerate(records):
         dets = rec[2] if len(rec) > 2 else None
@@ -111,7 +112,7 @@ def sample_frames(
     method: str = "uniform",
     n: int = 8,
     threshold: float = 0.05,
-) -> List[FrameRecord]:
+) -> list[FrameRecord]:
     """Dispatch to a strategy and return the selected records.
 
     Args:

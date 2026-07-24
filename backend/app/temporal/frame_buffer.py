@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
-from typing import Deque, List, Optional
 
 import numpy as np
 
@@ -29,7 +28,7 @@ class FrameBuffer:
         if capacity < 1:
             raise ValueError("capacity must be >= 1")
         self.capacity = int(capacity)
-        self._buf: Deque[BufferedFrame] = deque(maxlen=self.capacity)
+        self._buf: deque[BufferedFrame] = deque(maxlen=self.capacity)
 
     def __len__(self) -> int:
         return len(self._buf)
@@ -42,15 +41,15 @@ class FrameBuffer:
         """Drop all buffered frames."""
         self._buf.clear()
 
-    def all(self) -> List[BufferedFrame]:
+    def all(self) -> list[BufferedFrame]:
         """All buffered frames, oldest first."""
         return list(self._buf)
 
-    def latest(self) -> Optional[BufferedFrame]:
+    def latest(self) -> BufferedFrame | None:
         """The most recent frame, or ``None`` if empty."""
         return self._buf[-1] if self._buf else None
 
-    def last_seconds(self, sec: float) -> List[BufferedFrame]:
+    def last_seconds(self, sec: float) -> list[BufferedFrame]:
         """Frames whose timestamp is within ``sec`` seconds of the newest frame.
 
         Returns an empty list if the buffer is empty. The window is inclusive of the
@@ -63,7 +62,7 @@ class FrameBuffer:
         cutoff = newest - float(sec)
         return [f for f in self._buf if f.ts >= cutoff]
 
-    def sample(self, n: int, method: str = "uniform") -> List[BufferedFrame]:
+    def sample(self, n: int, method: str = "uniform") -> list[BufferedFrame]:
         """Sample ``n`` frames from the buffer.
 
         Args:

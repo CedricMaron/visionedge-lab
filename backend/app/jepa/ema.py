@@ -14,7 +14,7 @@ pure-numpy prototype and the torch modules.
 """
 from __future__ import annotations
 
-from typing import List, Sequence
+from collections.abc import Sequence
 
 
 def _is_torch_tensor(x: object) -> bool:
@@ -26,7 +26,7 @@ def ema_update(
     target_params: Sequence,
     online_params: Sequence,
     momentum: float,
-) -> List:
+) -> list:
     """Move ``target_params`` a fraction ``(1 - momentum)`` toward ``online_params``.
 
     Args:
@@ -50,9 +50,9 @@ def ema_update(
     if target_params and _is_torch_tensor(target_params[0]):
         import torch
 
-        updated: List = []
+        updated: list = []
         with torch.no_grad():  # target must not accumulate gradients
-            for t, o in zip(target_params, online_params):
+            for t, o in zip(target_params, online_params, strict=False):
                 t.mul_(momentum).add_(o.detach(), alpha=1.0 - momentum)
                 updated.append(t)
         return updated
@@ -60,8 +60,8 @@ def ema_update(
     # numpy path
     import numpy as np
 
-    updated_np: List = []
-    for t, o in zip(target_params, online_params):
+    updated_np: list = []
+    for t, o in zip(target_params, online_params, strict=False):
         updated_np.append(momentum * np.asarray(t) + (1.0 - momentum) * np.asarray(o))
     return updated_np
 
@@ -80,7 +80,7 @@ class EMA:
             raise ValueError("momentum must be in [0, 1)")
         self.momentum = float(momentum)
 
-    def update(self, target_params: Sequence, online_params: Sequence) -> List:
+    def update(self, target_params: Sequence, online_params: Sequence) -> list:
         """Apply one EMA step to raw param lists."""
         return ema_update(target_params, online_params, self.momentum)
 
@@ -93,8 +93,8 @@ class EMA:
         import torch
 
         with torch.no_grad():
-            for t, o in zip(target_module.parameters(), online_module.parameters()):
+            for t, o in zip(target_module.parameters(), online_module.parameters(), strict=False):
                 t.mul_(self.momentum).add_(o.detach(), alpha=1.0 - self.momentum)
                 t.requires_grad_(False)
-            for t, o in zip(target_module.buffers(), online_module.buffers()):
+            for t, o in zip(target_module.buffers(), online_module.buffers(), strict=False):
                 t.copy_(o)

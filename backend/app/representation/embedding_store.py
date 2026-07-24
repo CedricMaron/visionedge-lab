@@ -8,7 +8,7 @@ vectors) held in RAM.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -19,23 +19,23 @@ class StoredEmbedding:
 
     id: str
     vector: np.ndarray
-    meta: Dict[str, Any] = field(default_factory=dict)
+    meta: dict[str, Any] = field(default_factory=dict)
 
 
 class EmbeddingStore:
     """Cosine-similarity in-memory embedding store."""
 
-    def __init__(self, dim: Optional[int] = None) -> None:
+    def __init__(self, dim: int | None = None) -> None:
         self.dim = dim
-        self._ids: List[str] = []
-        self._vectors: List[np.ndarray] = []
-        self._meta: List[Dict[str, Any]] = []
-        self._index: Dict[str, int] = {}
+        self._ids: list[str] = []
+        self._vectors: list[np.ndarray] = []
+        self._meta: list[dict[str, Any]] = []
+        self._index: dict[str, int] = {}
 
     def __len__(self) -> int:
         return len(self._ids)
 
-    def add(self, id: str, vec, meta: Optional[Dict[str, Any]] = None) -> None:
+    def add(self, id: str, vec, meta: dict[str, Any] | None = None) -> None:
         """Add or overwrite the vector for ``id``.
 
         The first vector added fixes the store's dimensionality if it was not set.
@@ -56,14 +56,14 @@ class EmbeddingStore:
             self._vectors.append(v)
             self._meta.append(dict(meta or {}))
 
-    def get(self, id: str) -> Optional[StoredEmbedding]:
+    def get(self, id: str) -> StoredEmbedding | None:
         """Return the record for ``id`` or ``None``."""
         i = self._index.get(id)
         if i is None:
             return None
         return StoredEmbedding(self._ids[i], self._vectors[i], self._meta[i])
 
-    def all(self) -> List[StoredEmbedding]:
+    def all(self) -> list[StoredEmbedding]:
         """All stored records in insertion order."""
         return [
             StoredEmbedding(self._ids[i], self._vectors[i], self._meta[i])
@@ -83,7 +83,7 @@ class EmbeddingStore:
         self._meta.clear()
         self._index.clear()
 
-    def nearest(self, vec, k: int = 5) -> List[Tuple[str, float, Dict[str, Any]]]:
+    def nearest(self, vec, k: int = 5) -> list[tuple[str, float, dict[str, Any]]]:
         """Return up to ``k`` nearest records by cosine similarity.
 
         Returns a list of ``(id, similarity, meta)`` sorted by descending similarity.

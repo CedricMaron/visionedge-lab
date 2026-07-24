@@ -14,8 +14,6 @@ so callers can log/audit why something was unloaded.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
-
 
 # Conventional priority levels (higher = more protected).
 PRIORITY_TRAINING = 10
@@ -41,9 +39,9 @@ class ResourceDecision:
     """Outcome of an :meth:`ModelResourceManager.request_load`."""
 
     admitted: bool
-    unloaded: List[str] = field(default_factory=list)
-    paused: List[str] = field(default_factory=list)
-    log: List[str] = field(default_factory=list)
+    unloaded: list[str] = field(default_factory=list)
+    paused: list[str] = field(default_factory=list)
+    log: list[str] = field(default_factory=list)
 
 
 class ModelResourceManager:
@@ -53,7 +51,7 @@ class ModelResourceManager:
         if budget_mb <= 0:
             raise ValueError("budget_mb must be positive")
         self.budget_mb = float(budget_mb)
-        self._models: Dict[str, LoadedModel] = {}
+        self._models: dict[str, LoadedModel] = {}
         self._tick = 0
 
     # --- introspection -------------------------------------------------------
@@ -63,7 +61,7 @@ class ModelResourceManager:
     def free_mb(self) -> float:
         return self.budget_mb - self.used_mb()
 
-    def loaded(self) -> List[str]:
+    def loaded(self) -> list[str]:
         return list(self._models.keys())
 
     def touch(self, model_id: str) -> None:
@@ -73,7 +71,7 @@ class ModelResourceManager:
             self._models[model_id].last_used = self._tick
 
     # --- core policy ---------------------------------------------------------
-    def _eviction_order(self, protect: Optional[str] = None) -> List[LoadedModel]:
+    def _eviction_order(self, protect: str | None = None) -> list[LoadedModel]:
         """Candidates ordered best-to-evict-first: low priority then least recent."""
         cands = [m for m in self._models.values() if m.model_id != protect]
         # Never auto-evict real-time detection (highest priority sentinel).
@@ -120,7 +118,7 @@ class ModelResourceManager:
 
         # Need to free space.
         freed = 0.0
-        to_remove: List[LoadedModel] = []
+        to_remove: list[LoadedModel] = []
         for cand in self._eviction_order(protect=model_id):
             if freed >= needed:
                 break
@@ -157,7 +155,7 @@ class ModelResourceManager:
         )
         return decision
 
-    def unload(self, model_id: str) -> Optional[str]:
+    def unload(self, model_id: str) -> str | None:
         """Explicitly unload a model. Returns a log string or ``None`` if absent."""
         if model_id in self._models:
             mb = self._models[model_id].estimated_mb

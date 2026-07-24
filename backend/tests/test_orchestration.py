@@ -1,7 +1,6 @@
 """Tests for the orchestration subsystem (pure logic)."""
 from __future__ import annotations
 
-
 from app.orchestration.execution_planner import (
     PRESETS,
     STAGES,

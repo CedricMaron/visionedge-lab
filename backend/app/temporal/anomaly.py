@@ -13,7 +13,6 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Deque, Dict, Optional
 
 import numpy as np
 
@@ -29,7 +28,7 @@ class AnomalyScorer:
 
     window: int = 128
     z_threshold: float = 3.0
-    _errors: Deque[float] = field(default_factory=lambda: deque(maxlen=128), init=False)
+    _errors: deque[float] = field(default_factory=lambda: deque(maxlen=128), init=False)
     mean: float = field(default=0.0, init=False)
     std: float = field(default=1.0, init=False)
     calibrated: bool = field(default=False, init=False)
@@ -55,7 +54,7 @@ class AnomalyScorer:
             raise RuntimeError("AnomalyScorer must be calibrated before scoring")
         return (float(error) - self.mean) / self.std
 
-    def score(self, error: float, update: bool = False) -> Dict[str, float]:
+    def score(self, error: float, update: bool = False) -> dict[str, float]:
         """Score one error.
 
         Args:
@@ -83,7 +82,7 @@ class AnomalyScorer:
             self.std = max(float(arr.std()), 1e-9)
         return result
 
-    def rolling_stats(self) -> Optional[Dict[str, float]]:
+    def rolling_stats(self) -> dict[str, float] | None:
         """Current baseline statistics, or ``None`` if never calibrated."""
         if not self.calibrated:
             return None

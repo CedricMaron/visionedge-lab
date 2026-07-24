@@ -5,7 +5,8 @@ directly on numpy matrices, keeping the math in one place.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Sequence, Tuple
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 
@@ -19,7 +20,7 @@ def _l2_normalize(x: np.ndarray, eps: float = 1e-12) -> np.ndarray:
 
 def cosine_nearest(
     query: np.ndarray, matrix: np.ndarray, k: int = 5
-) -> List[Tuple[int, float]]:
+) -> list[tuple[int, float]]:
     """Return ``(index, similarity)`` for the top-``k`` rows of ``matrix``."""
     if matrix.shape[0] == 0:
         return []
@@ -33,7 +34,7 @@ def cosine_nearest(
 
 def nearest_in_store(
     store: EmbeddingStore, query: np.ndarray, k: int = 5
-) -> List[Tuple[str, float, Dict[str, Any]]]:
+) -> list[tuple[str, float, dict[str, Any]]]:
     """Convenience wrapper: nearest records in an :class:`EmbeddingStore`."""
     return store.nearest(query, k=k)
 

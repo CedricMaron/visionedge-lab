@@ -13,8 +13,6 @@ These are diagnostics, not leaderboard numbers; nothing here is hardcoded.
 """
 from __future__ import annotations
 
-from typing import Dict
-
 import numpy as np
 
 
@@ -33,7 +31,7 @@ def linear_probe(
     lr: float = 0.1,
     weight_decay: float = 1e-4,
     seed: int = 0,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """Fit a numpy softmax-regression probe on frozen features.
 
     Standardizes features using train statistics, runs full-batch gradient descent on

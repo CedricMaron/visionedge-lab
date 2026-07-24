@@ -19,7 +19,6 @@ A cooldown prevents back-to-back invocations except when the user explicitly ask
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Tuple
 
 
 @dataclass
@@ -43,22 +42,22 @@ class Signals:
     detector_event: bool = False
     selected_object_present: bool = False
     scene_changed: bool = False
-    anomaly_score: Optional[float] = None
+    anomaly_score: float | None = None
     timer_elapsed: bool = False
-    seconds_since_last_invocation: Optional[float] = None
+    seconds_since_last_invocation: float | None = None
 
 
 class VLMInvocationPolicy:
     """Decide whether to invoke the VLM given current signals."""
 
-    def __init__(self, config: Optional[InvocationConfig] = None) -> None:
+    def __init__(self, config: InvocationConfig | None = None) -> None:
         self.config = config or InvocationConfig()
 
     def _in_cooldown(self, signals: Signals) -> bool:
         s = signals.seconds_since_last_invocation
         return s is not None and s < self.config.cooldown_seconds
 
-    def decide(self, signals: Signals) -> Tuple[bool, str]:
+    def decide(self, signals: Signals) -> tuple[bool, str]:
         """Return ``(should_invoke, reason)``.
 
         Priority order: explicit user request > anomaly > detector event > selected

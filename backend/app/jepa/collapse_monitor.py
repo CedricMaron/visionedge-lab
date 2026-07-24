@@ -10,8 +10,6 @@ None of these metrics is a guarantee of good representations -- they only detect
 """
 from __future__ import annotations
 
-from typing import Dict, Optional
-
 import numpy as np
 
 
@@ -72,7 +70,7 @@ def average_pairwise_cosine(embeddings: np.ndarray, eps: float = 1e-12) -> float
     return float(sims[iu].mean())
 
 
-def collapse_metrics(embeddings: np.ndarray) -> Dict[str, float]:
+def collapse_metrics(embeddings: np.ndarray) -> dict[str, float]:
     """Bundle all scalar diagnostics into a dict."""
     return {
         "mean_std": mean_std(embeddings),
@@ -83,7 +81,7 @@ def collapse_metrics(embeddings: np.ndarray) -> Dict[str, float]:
     }
 
 
-def collapse_warning(metrics: Dict[str, float], std_threshold: float = 1e-3) -> Optional[str]:
+def collapse_warning(metrics: dict[str, float], std_threshold: float = 1e-3) -> str | None:
     """Return a human-readable warning if metrics indicate collapse, else ``None``.
 
     Args:

@@ -19,7 +19,7 @@ from __future__ import annotations
 import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class JobState(str, Enum):
@@ -34,7 +34,7 @@ class JobState(str, Enum):
 TERMINAL_STATES = frozenset({JobState.STOPPED, JobState.COMPLETED, JobState.FAILED})
 
 # Legal transitions.
-_TRANSITIONS: Dict[JobState, frozenset] = {
+_TRANSITIONS: dict[JobState, frozenset] = {
     JobState.QUEUED: frozenset({JobState.RUNNING, JobState.STOPPED}),
     JobState.RUNNING: frozenset(
         {JobState.PAUSED, JobState.COMPLETED, JobState.FAILED, JobState.STOPPED}
@@ -63,24 +63,24 @@ class JobRecord:
 
     job_id: str
     kind: str  # e.g. "image_jepa", "video_jepa"
-    params: Dict[str, Any] = field(default_factory=dict)
+    params: dict[str, Any] = field(default_factory=dict)
     state: JobState = JobState.QUEUED
     progress: float = 0.0  # 0..1
     total_steps: int = 0
     current_step: int = 0
-    metrics: Dict[str, float] = field(default_factory=dict)
-    error: Optional[str] = None
-    checkpoint_path: Optional[str] = None
+    metrics: dict[str, float] = field(default_factory=dict)
+    error: str | None = None
+    checkpoint_path: str | None = None
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         d["state"] = self.state.value
         return d
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> JobRecord:
+    def from_dict(cls, data: dict[str, Any]) -> JobRecord:
         data = dict(data)
         data["state"] = JobState(data.get("state", JobState.QUEUED.value))
         # Drop unexpected keys defensively.

@@ -18,7 +18,6 @@ deterministic, which the tests rely on for reproducibility.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Tuple
 
 import numpy as np
 
@@ -38,9 +37,9 @@ class BlockMaskConfig:
 
     num_context_blocks: int = 1
     num_target_blocks: int = 4
-    target_scale: Tuple[float, float] = (0.15, 0.2)
-    context_scale: Tuple[float, float] = (0.85, 1.0)
-    aspect_ratio: Tuple[float, float] = (0.75, 1.5)
+    target_scale: tuple[float, float] = (0.15, 0.2)
+    context_scale: tuple[float, float] = (0.85, 1.0)
+    aspect_ratio: tuple[float, float] = (0.75, 1.5)
     max_attempts: int = 20
 
 
@@ -56,7 +55,7 @@ class MaskResult:
     grid_h: int
     grid_w: int
     context_mask: np.ndarray
-    target_masks: List[np.ndarray] = field(default_factory=list)
+    target_masks: list[np.ndarray] = field(default_factory=list)
 
     @property
     def num_patches(self) -> int:
@@ -79,8 +78,8 @@ class MaskResult:
 def _sample_block(
     grid_h: int,
     grid_w: int,
-    scale: Tuple[float, float],
-    aspect_ratio: Tuple[float, float],
+    scale: tuple[float, float],
+    aspect_ratio: tuple[float, float],
     rng: np.random.Generator,
     max_attempts: int,
 ) -> np.ndarray:
@@ -138,7 +137,7 @@ def generate_block_masks(
     total = grid_h * grid_w
 
     # 1) Sample target blocks.
-    target_masks: List[np.ndarray] = []
+    target_masks: list[np.ndarray] = []
     for _ in range(max(1, config.num_target_blocks)):
         target_masks.append(
             _sample_block(

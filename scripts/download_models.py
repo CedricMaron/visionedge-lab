@@ -1,0 +1,188 @@
+#!/usr/bin/env python3
+"""List and install models declared in models/registry.json.
+
+--list    prints every registry model with its install status and size.
+--install MODEL_ID fetches ONLY that model:
+    * detection ONNX models (yolov8n/s/m-onnx) are produced by exporting via ultralytics
+      (delegates to scripts/export_onnx.py),
+    * detection PyTorch weights (*-pt) are downloaded by ultralytics,
+    * VLM models are transformers/opt-in and are NOT downloaded here (a pointer is shown).
+
+Safety: anything that would require downloading > 5 GB requires an explicit confirmation
+(-y). None of the current models approach that, but the guard is implemented. After a
+detection model is installed its checksum is verified against the registry when present.
+
+Examples:
+    python scripts/download_models.py --list
+    python scripts/download_models.py --install yolov8s-onnx
+"""
+from __future__ import annotations
+
+import argparse
+import shutil
+from pathlib import Path
+
+import _common as C
+
+C.bootstrap_path()
+
+REGISTRY_PATH = C.MODELS_DIR / "registry.json"
+FIVE_GB = 5 * 1024 * 1024 * 1024
+
+# registry model_id -> export_onnx --model key
+ONNX_EXPORT_KEY = {
+    "yolov8n-onnx": "nano",
+    "yolov8s-onnx": "small",
+    "yolov8m-onnx": "medium",
+}
+PT_WEIGHTS = {
+    "yolov8n-pt": "yolov8n.pt",
+}
+
+
+def _load_registry():
+    from app.models.registry import load_registry
+
+    return load_registry(REGISTRY_PATH)
+
+
+def _installed(local_path: str) -> bool:
+    return (C.REPO_ROOT / local_path).exists()
+
+
+def cmd_list() -> int:
+    reg = _load_registry()
+    print(f"{'model_id':<20}{'kind':<10}{'status':<14}{'size':<12}local_path")
+    print("-" * 78)
+    for m in reg.detection_models:
+        status = "installed" if _installed(m.local_path) else "not_installed"
+        p = C.REPO_ROOT / m.local_path
+        size = C.human_size(C.file_size(p)) if p.exists() else (
+            C.human_size(m.file_size_bytes) if m.file_size_bytes else "?"
+        )
+        print(f"{m.model_id:<20}{'detection':<10}{status:<14}{size:<12}{m.local_path}")
+    for v in reg.vlm_models:
+        status = "builtin" if v.model_source == "builtin" else "opt-in (transformers)"
+        print(f"{v.model_id:<20}{'vlm':<10}{status:<14}{'-':<12}{v.model_source}")
+    print("\nInstall a detection model with: --install <model_id>")
+    print("VLM models are opt-in via transformers (see backend/requirements/vlm.txt).")
+    return 0
+
+
+def _free_disk_bytes(path: Path) -> int:
+    return shutil.disk_usage(path).free
+
+
+def _confirm_large(est_bytes: int, assume_yes: bool) -> None:
+    if est_bytes <= FIVE_GB:
+        return
+    C.warn(f"this install may download ~{C.human_size(est_bytes)} (> 5 GB).")
+    if assume_yes:
+        C.info("proceeding (-y given).")
+        return
+    resp = input("Proceed? [y/N] ").strip().lower()
+    if resp not in ("y", "yes"):
+        C.die("aborted by user.", code=2)
+
+
+def cmd_install(model_id: str, assume_yes: bool) -> int:
+    reg = _load_registry()
+    det = reg.detection(model_id)
+    vlm = reg.vlm(model_id)
+
+    if vlm is not None:
+        C.die(f"'{model_id}' is a VLM ({vlm.model_source}). VLMs are opt-in via transformers; "
+              "install backend/requirements/vlm.txt and load through the VLM manager. "
+              "This downloader handles detection models only.")
+    if det is None:
+        available = ", ".join(m.model_id for m in reg.detection_models)
+        C.die(f"unknown model_id '{model_id}'. Detection models: {available}")
+
+    target = C.REPO_ROOT / det.local_path
+    if target.exists():
+        C.info(f"{model_id} already installed at {target}")
+        if det.checksum_sha256:
+            _verify(target, det.checksum_sha256)
+        return 0
+
+    # Rough download estimate for the disk/large-file guard.
+    est = det.file_size_bytes or (55 * 1024 * 1024)  # medium ~50MB upper bound
+    free = _free_disk_bytes(C.MODELS_DIR)
+    C.info(f"estimated download/produce size: ~{C.human_size(est)}; free disk: {C.human_size(free)}")
+    if free < est * 2:
+        C.warn("low free disk space relative to model size.")
+    _confirm_large(est, assume_yes)
+
+    if model_id in ONNX_EXPORT_KEY:
+        C.info(f"producing {model_id} via ultralytics export ...")
+        import export_onnx
+
+        rc = export_onnx.main(["--model", ONNX_EXPORT_KEY[model_id], "--size",
+                               str(det.input_size), "--output", str(target)])
+        if rc != 0:
+            C.die("export failed")
+    elif model_id in PT_WEIGHTS:
+        _download_pt(PT_WEIGHTS[model_id], target)
+    else:
+        C.die(f"no installer wired for '{model_id}'.")
+
+    if not target.exists():
+        C.die(f"install finished but file missing: {target}")
+    C.ok(f"installed {model_id} -> {target} ({C.human_size(C.file_size(target))})")
+
+    if det.checksum_sha256:
+        _verify(target, det.checksum_sha256)
+    else:
+        C.info("no checksum in registry for this entry; run scripts/checksum.py "
+               "--update-registry to record one.")
+    return 0
+
+
+def _download_pt(weights_name: str, target: Path) -> None:
+    try:
+        from ultralytics import YOLO
+    except Exception:
+        C.die("ultralytics not installed; pip install -r backend/requirements/base.txt")
+    C.info(f"downloading {weights_name} via ultralytics ...")
+    model = YOLO(weights_name)  # triggers download into cwd/cache
+    src = Path(getattr(model, "ckpt_path", weights_name))
+    if not src.exists():
+        src = Path(weights_name)
+    if src.exists() and src.resolve() != target.resolve():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(src), str(target))
+
+
+def _verify(path: Path, expected_sha: str) -> None:
+    from app.models.registry import verify_checksum
+
+    if verify_checksum(path, expected_sha):
+        C.ok(f"checksum verified: {expected_sha}")
+    else:
+        actual = C.sha256_file(path)
+        C.warn(f"checksum MISMATCH:\n  expected {expected_sha}\n  actual   {actual}\n"
+               "  (export is not always bit-reproducible across tool versions; run "
+               "scripts/validate_onnx.py to confirm output agreement.)")
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    g = p.add_mutually_exclusive_group(required=True)
+    g.add_argument("--list", action="store_true", help="list models + install status")
+    g.add_argument("--install", metavar="MODEL_ID", help="install a single model by id")
+    p.add_argument("-y", "--yes", action="store_true",
+                   help="assume yes for the >5GB confirmation guard")
+    return p.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    if args.list:
+        return cmd_list()
+    return cmd_install(args.install, args.yes)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

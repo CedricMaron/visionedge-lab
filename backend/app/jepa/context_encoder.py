@@ -111,7 +111,9 @@ class ContextEncoder(_Base):
             batch_first=True,
             norm_first=True,
         )
-        self.blocks = nn.TransformerEncoder(layer, num_layers=config.depth)
+        self.blocks = nn.TransformerEncoder(
+            layer, num_layers=config.depth, enable_nested_tensor=False
+        )
         self.norm = nn.LayerNorm(config.embed_dim)
 
     def forward(self, x, keep_indices=None):  # noqa: D401

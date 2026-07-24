@@ -45,7 +45,9 @@ class Predictor(_Base):
             batch_first=True,
             norm_first=True,
         )
-        self.blocks = nn.TransformerEncoder(layer, num_layers=config.predictor_depth)
+        self.blocks = nn.TransformerEncoder(
+            layer, num_layers=config.predictor_depth, enable_nested_tensor=False
+        )
         self.norm = nn.LayerNorm(pdim)
         self.out_proj = nn.Linear(pdim, config.embed_dim)
 
