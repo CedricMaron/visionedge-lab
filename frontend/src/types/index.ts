@@ -245,6 +245,28 @@ export interface BenchmarksResponse {
   benchmarks: BenchmarkResult[];
 }
 
+// One configuration's aggregated benchmark history. Median, never best — see
+// backend/app/storage/db.py::benchmark_groups.
+export interface BenchmarkComparisonRow {
+  model_id: string;
+  backend: string;
+  provider: string | null;
+  device: string;
+  input_size: number;
+  precision: string;
+  n: number;
+  median_fps: number | null;
+  median_p50_ms: number | null;
+  latest_ts: number;
+  latest_fps: number | null;
+  any_concurrent_traffic: boolean;
+}
+
+export interface BenchmarkComparisonResponse {
+  groups: BenchmarkComparisonRow[];
+  note: string;
+}
+
 /* ------------------------------------------------------------------ */
 /* Sessions                                                            */
 /* ------------------------------------------------------------------ */

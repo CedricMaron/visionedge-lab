@@ -2,6 +2,7 @@
 
 import { http } from './http';
 import type {
+  BenchmarkComparisonResponse,
   BenchmarkResult,
   BenchmarksResponse,
   Capabilities,
@@ -40,6 +41,9 @@ export const api = {
 
   benchmarks: (signal?: AbortSignal) =>
     http.get<BenchmarksResponse>('/api/benchmarks', undefined, signal),
+
+  benchmarkComparison: (signal?: AbortSignal) =>
+    http.get<BenchmarkComparisonResponse>('/api/benchmarks/comparison', undefined, signal),
 
   switchDetection: (config: InferenceConfig) =>
     http.postJson<SwitchResponse>('/api/detection/switch', config),
