@@ -136,8 +136,12 @@ export interface Detection {
   modelVersion: string;
 }
 
+// Real per-stage split measured by predict_timed on the backend — these are four
+// distinct measurements, not one value repeated.
 export interface InferTimings {
+  preprocess_ms: number;
   inference_ms: number;
+  postprocess_ms: number;
   end_to_end_ms: number;
 }
 

@@ -1,6 +1,6 @@
 // Shared interfaces for pluggable inference backends (Phase 3 groundwork).
 
-import type { Detection } from '@/types';
+import type { Detection, InferTimings } from '@/types';
 
 export interface InferenceRequest {
   // Encoded JPEG frame or raw image bitmap source.
@@ -14,6 +14,8 @@ export interface InferenceOutput {
   detections: Detection[];
   inferenceMs: number;
   backend: string;
+  // Per-stage breakdown when the backend measures one (the server path does).
+  timings?: InferTimings;
 }
 
 export interface InferenceBackend {
