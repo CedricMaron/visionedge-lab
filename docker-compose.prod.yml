@@ -1,0 +1,73 @@
+# VisionEdge Lab — production orchestration for a single-origin deployment.
+#
+#   1. scripts/download_models.py --install yolov8n-onnx   (fetch + verify weights)
+#   2. SITE_ADDRESS=visionedge.c-maron.space docker compose -f docker-compose.prod.yml up -d
+#
+# Caddy terminates TLS and serves the SPA, proxying /api and /health to the backend.
+# The frontend image is built with an empty VITE_API_BASE so the app resolves the
+# API base to the origin it was served from.
+services:
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - SITE_ADDRESS=${SITE_ADDRESS:-visionedge.c-maron.space}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - frontend-dist:/srv:ro
+      - caddy-data:/data       # certificates — must persist or you re-issue on restart
+      - caddy-config:/config
+    depends_on:
+      frontend:
+        condition: service_completed_successfully
+      backend:
+        condition: service_started
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: visionedge-backend:cpu
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      - VE_HOST=0.0.0.0
+      - VE_PORT=8000
+      - VE_LOG_JSON=true
+      - VE_DEFAULT_MODEL_ID=yolov8n-onnx
+      - VE_DEFAULT_VLM_ID=mock-vlm
+      # Same-origin, so the browser never sends a cross-origin request. Set
+      # explicitly anyway as defence in depth, in case the backend is ever
+      # exposed directly.
+      - VE_CORS_ORIGINS=https://${SITE_ADDRESS:-visionedge.c-maron.space}
+      # Frames are never sent to a remote VLM unless this is deliberately enabled.
+      - VE_ALLOW_FRAME_TRANSMISSION=false
+      - VE_DB_PATH=/data/visionedge.db
+    volumes:
+      - ./models:/app/models:ro
+      - ./benchmark-data:/app/benchmark-data
+      - backend-data:/data     # benchmark history + sessions survive restarts
+
+  # One-shot: builds the SPA, publishes the static files into the volume Caddy
+  # serves, then exits. Caddy waits for it to complete before starting.
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: ""      # empty => resolve to window.location.origin
+    image: visionedge-frontend:latest
+    restart: "no"
+    command: sh -c "rm -rf /srv/* && cp -r /usr/share/nginx/html/. /srv/"
+    volumes:
+      - frontend-dist:/srv
+
+volumes:
+  frontend-dist:
+  backend-data:
+  caddy-data:
+  caddy-config:

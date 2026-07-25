@@ -3,7 +3,19 @@
 // The WebSocket URL is always DERIVED from the API base — never hardcoded.
 
 const LS_KEY = 'visionedge.apiBase';
-const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000';
+
+// When VITE_API_BASE is not baked in at build time, talk to the origin the app was
+// served from. That makes one build artifact work for a same-origin deployment
+// behind a reverse proxy (visionedge.c-maron.space) without a rebuild. Local dev
+// sets VITE_API_BASE=http://localhost:8000 in .env, and Settings can override both.
+function defaultApiBase(): string {
+  const configured = import.meta.env.VITE_API_BASE;
+  if (configured && configured.trim().length > 0) return configured;
+  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
+  return 'http://localhost:8000';
+}
+
+const DEFAULT_API_BASE = defaultApiBase();
 
 export function getApiBase(): string {
   if (typeof localStorage !== 'undefined') {

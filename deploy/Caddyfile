@@ -1,0 +1,39 @@
+# VisionEdge Lab — single-origin reverse proxy.
+#
+# The SPA and the API share one origin, so there is no CORS and wss:// is derived
+# from https:// with no extra configuration. Caddy obtains and renews the TLS
+# certificate automatically (port 80 must be reachable for the ACME challenge).
+#
+# Override the hostname per environment:
+#   caddy run --config deploy/Caddyfile --envfile .env
+# with SITE_ADDRESS set, e.g. SITE_ADDRESS=visionedge.c-maron.space
+
+{$SITE_ADDRESS:visionedge.c-maron.space} {
+	encode zstd gzip
+
+	# NOTE: rate limiting is enforced in the backend (app/api/ratelimit.py), not here.
+	# Caddy v2 has no built-in rate_limit directive — it is a third-party plugin
+	# requiring a custom xcaddy build, so this file stays runnable on stock caddy
+	# and the limit applies even if the app is deployed without this proxy.
+
+	# /health sits outside /api but is part of the backend API surface.
+	handle /health {
+		reverse_proxy backend:8000
+	}
+
+	handle /api/* {
+		# WebSocket upgrades (/api/ws/detect) are proxied without extra directives.
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

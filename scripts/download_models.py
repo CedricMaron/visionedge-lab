@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import shutil
 from pathlib import Path
+from urllib.request import urlopen
 
 import _common as C
 
@@ -113,7 +114,11 @@ def cmd_install(model_id: str, assume_yes: bool) -> int:
         C.warn("low free disk space relative to model size.")
     _confirm_large(est, assume_yes)
 
-    if model_id in ONNX_EXPORT_KEY:
+    # A published URL is preferred over a local export: it needs no ultralytics or
+    # torch on the machine doing the install, which matters on a deployment host.
+    if det.download_url:
+        _download_url(det.download_url, target)
+    elif model_id in ONNX_EXPORT_KEY:
         C.info(f"producing {model_id} via ultralytics export ...")
         import export_onnx
 
@@ -136,6 +141,36 @@ def cmd_install(model_id: str, assume_yes: bool) -> int:
         C.info("no checksum in registry for this entry; run scripts/checksum.py "
                "--update-registry to record one.")
     return 0
+
+
+def _download_url(url: str, target: Path) -> None:
+    """Fetch ``url`` to ``target``. Writes to a temp file first.
+
+    A half-written file that a later run mistakes for an installed model is worse
+    than no file at all, so nothing lands at ``target`` unless the transfer
+    completed.
+    """
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_suffix(target.suffix + ".part")
+    C.info(f"downloading {url}")
+    try:
+        with urlopen(url) as resp:  # noqa: S310 — registry-controlled https URL
+            total = int(resp.headers.get("Content-Length") or 0)
+            written = 0
+            with open(tmp, "wb") as fh:
+                while True:
+                    chunk = resp.read(1 << 20)
+                    if not chunk:
+                        break
+                    fh.write(chunk)
+                    written += len(chunk)
+            if total and written != total:
+                raise OSError(f"truncated download: got {written} of {total} bytes")
+    except Exception as exc:  # noqa: BLE001 — reported cleanly, no traceback
+        tmp.unlink(missing_ok=True)
+        C.die(f"download failed: {exc}")
+    tmp.replace(target)
+    C.ok(f"downloaded {C.human_size(C.file_size(target))}")
 
 
 def _download_pt(weights_name: str, target: Path) -> None:

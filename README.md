@@ -208,6 +208,45 @@ make frontend-test   # frontend vitest (class selection, model switching)
 - [`docs/RESEARCH_LIMITATIONS.md`](docs/RESEARCH_LIMITATIONS.md) — honest limitations
 - [`docs/INTERVIEW_GUIDE.md`](docs/INTERVIEW_GUIDE.md) — interview talking points
 
+## Deployment
+
+The app is served from a single origin behind a Caddy reverse proxy: Caddy serves
+the built SPA and proxies `/api` (including the `/api/ws/detect` WebSocket) and
+`/health` to the backend. Same origin means no CORS, `wss://` derived for free, and
+one certificate. Camera capture requires HTTPS, which Caddy's automatic TLS provides.
+
+```bash
+# 1. Point an A/AAAA record at the host, and open ports 80 and 443
+#    (Caddy needs 80 for the ACME challenge).
+
+# 2. Fetch the detection weights (12.8 MB, checksum-verified against the registry).
+#    A fresh clone has no .onnx: model binaries are gitignored.
+python scripts/download_models.py --install yolov8n-onnx
+
+# 3. Start it.
+SITE_ADDRESS=visionedge.c-maron.space docker compose -f docker-compose.prod.yml up -d
+```
+
+Set `VE_RATE_LIMIT_PER_MIN` for anything internet-facing — every `/api/infer` and
+`/api/vlm/*` request is a real model forward pass, so an unlimited public endpoint
+is a cost and abuse vector. The limit is enforced in the backend
+(`app/api/ratelimit.py`) rather than at the proxy, so it holds however you deploy.
+The SQLite database must stay on a mounted volume (`VE_DB_PATH`), or benchmark
+history and sessions are discarded on every restart.
+
+### The hosted demo runs on different hardware
+
+Every number this project reports is measured on the machine it runs on. This
+README's framing — a laptop-class RTX 2060 with 6 GB in WSL2 — describes the
+**development** machine. On a hosted deployment, the Device Capabilities page and
+every benchmark will honestly report **that server's** hardware instead, which is
+typically a CPU-only VPS with no GPU at all. The two sets of numbers are not
+comparable, and neither is wrong: they are measurements of different machines.
+
+Note also that the YOLOv8 weights are AGPL-3.0 (see [License](#license)); AGPL
+covers network use, so a public deployment serving them should keep its
+corresponding source available — which this public repository does.
+
 ## Privacy & security
 
 - Camera frames are **not stored by default**. Remote frame transmission is off unless you set `VE_ALLOW_FRAME_TRANSMISSION=true`.

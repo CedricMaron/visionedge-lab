@@ -12,6 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.api.ratelimit import install_rate_limit
 from app.core.config import get_settings
 from app.core.errors import VisionEdgeError
 from app.core.logging import configure_logging, get_logger
@@ -49,6 +50,8 @@ def create_app() -> FastAPI:
         CORSMiddleware, allow_origins=origins, allow_credentials=True,
         allow_methods=["*"], allow_headers=["*"],
     )
+
+    install_rate_limit(app, settings.rate_limit_per_min)
 
     @app.exception_handler(VisionEdgeError)
     async def _domain_error(request: Request, exc: VisionEdgeError):

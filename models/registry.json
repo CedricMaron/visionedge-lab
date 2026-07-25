@@ -27,7 +27,7 @@
       "file_size_bytes": 12851139,
       "checksum_sha256": "2a8df06a8387509e51e233f19d2ce839af255ae008cf03c982415ffe6f236030",
       "expected_memory_mb": 300,
-      "download_url": null,
+      "download_url": "https://github.com/CedricMaron/visionedge-lab/releases/download/v0.1.0-models/yolov8n.onnx",
       "local_path": "models/yolov8n.onnx",
       "deployment_status": "installed",
       "reference_backend": true,

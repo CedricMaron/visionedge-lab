@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     # --- transport / backpressure ---
     max_frame_queue: int = 2          # bounded queue: drop frames under load
     max_upload_bytes: int = 8 * 1024 * 1024
+
+    # Public deployments run real inference per request. 0 disables the limit
+    # (the local-dev default); set a value for anything internet-facing.
+    rate_limit_per_min: int = 0
     ws_recv_timeout_s: float = 30.0
 
     # --- vlm ---
