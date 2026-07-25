@@ -42,6 +42,41 @@ Rejected: a split `api.visionedge.c-maron.space` (needs explicit CORS and a seco
 certificate; only pays off if the two are hosted on different machines), and
 frontend-only publication (the demo would be dead for every visitor but the author).
 
+## Gaps found when checking the container build (added 2026-07-25)
+
+The first draft was written from the configuration surface and assumed the
+existing `docker-compose.yml` worked. Verifying it turned up three blockers that
+have nothing to do with the subdomain but stop any deployment:
+
+**`frontend/Dockerfile` does not exist.** `docker-compose.yml` already references
+it, so `docker compose build` fails today. `docker compose config` validates YAML
+only and never checks that referenced Dockerfiles exist, so it passed while the
+build was broken. A multi-stage node-build → static-serve Dockerfile is required.
+
+**A fresh clone has no model.** `models/*.onnx` is gitignored; only
+`registry.json` and a sidecar are tracked, and the `yolov8n-onnx` entry has
+`"download_url": null`. The compose file mounts `./models` read-only from the
+host, so a new server starts with no detector.
+
+*Decision:* publish `yolov8n.onnx` (12.85 MB) as a GitHub release asset, set its
+`download_url` in the registry, and let `scripts/download_models.py` fetch and
+checksum-verify it at deploy time. That script already downloads and verifies
+against `checksum_sha256`, which the registry already carries for this entry —
+the only missing piece is the URL. Keeps the image small and needs no
+ultralytics/torch on the server.
+
+*Licensing:* the weights are AGPL-3.0 (Ultralytics) while this repo is MIT.
+Publishing them as a release asset is redistribution, and AGPL §13 covers network
+use, so the README must state that the detection weights are AGPL-3.0, that the
+MIT license covers this project's own code only, and point to the source. The
+repo being public already satisfies the substance of the source-offer
+requirement.
+
+**The database is not persisted.** `db_path` resolves inside the container and no
+volume mounts it, so every restart discards benchmark history and sessions —
+exactly the data the comparison view accumulates. It would read as permanently
+empty in production. The prod compose file must mount it.
+
 ## Components
 
 **`deploy/Caddyfile`** (new) — Caddy over nginx for automatic certificate issuance
@@ -63,9 +98,15 @@ visionedge.c-maron.space {
 
 Caddy proxies WebSocket upgrades without extra directives.
 
+**`frontend/Dockerfile`** (new) — multi-stage: `npm ci && npm run build`, then the
+built `dist/` copied into a static-serving stage. Referenced by the existing
+compose file, which currently cannot build without it.
+
 **`docker-compose.prod.yml`** (new) — caddy + backend + a frontend build stage that
 emits static files into the volume Caddy serves. The existing `docker-compose.yml`
-stays as the local-development file.
+stays as the local-development file. Mounts a named volume for the SQLite database
+so benchmark history and sessions survive restarts, and mounts `./models` so the
+fetched weights are visible to the backend.
 
 **`frontend/src/config.ts`** — when `VITE_API_BASE` is unset, default to
 `window.location.origin` instead of `http://localhost:8000`. This makes a
@@ -115,4 +156,6 @@ only work with uploaded files.
 
 1. `A`/`AAAA` record for `visionedge.c-maron.space` → the host's IP.
 2. Ports 80 and 443 open (Caddy needs 80 for the ACME challenge).
-3. `docker compose -f docker-compose.prod.yml up -d`.
+3. `python scripts/download_models.py --install yolov8n-onnx` to fetch and
+   checksum-verify the weights from the release asset.
+4. `docker compose -f docker-compose.prod.yml up -d`.
