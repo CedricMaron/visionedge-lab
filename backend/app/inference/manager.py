@@ -178,6 +178,20 @@ class DetectionManager:
                 allowed = set(cfg.allowed_class_ids)
             return self._backend.predict(image, c, i, allowed)
 
+    def predict_timed(self, image, conf=None, iou=None, allowed_class_ids=None):
+        """Predict with a per-stage timing breakdown, applying the same config defaults."""
+        with self._lock:
+            if self._backend is None or not self._accepting:
+                return [], {"preprocess_ms": 0.0, "inference_ms": 0.0,
+                            "postprocess_ms": 0.0, "end_to_end_ms": 0.0}
+            cfg = self._config
+            c = conf if conf is not None else (cfg.confidence if cfg else 0.25)
+            i = iou if iou is not None else (cfg.iou if cfg else 0.45)
+            allowed = allowed_class_ids
+            if allowed is None and cfg and cfg.allowed_class_ids is not None:
+                allowed = set(cfg.allowed_class_ids)
+            return self._backend.predict_timed(image, c, i, allowed)
+
     def benchmark_target(self):
         """Return ``(backend, frame)`` to benchmark, captured under the lock.
 

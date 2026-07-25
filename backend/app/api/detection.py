@@ -45,16 +45,23 @@ async def infer(
     allowed = {int(c) for c in classes.split(",") if c.strip().isdigit()} if classes else None
 
     t0 = time.perf_counter()
-    dets = await run_in_threadpool(state.detection.predict, img, confidence, iou, allowed)
-    dt = (time.perf_counter() - t0) * 1000.0
+    dets, timings = await run_in_threadpool(
+        state.detection.predict_timed, img, confidence, iou, allowed
+    )
+    e2e = (time.perf_counter() - t0) * 1000.0
 
     backend = state.detection.config.runtime if state.detection.config else "none"
-    state.metrics.record(dt, dt)
+    state.metrics.record(timings["inference_ms"], e2e)
     FRAMES_TOTAL.labels(backend=backend).inc()
-    INFERENCE_LATENCY.labels(backend=backend).observe(dt)
+    INFERENCE_LATENCY.labels(backend=backend).observe(timings["inference_ms"])
     return {
         "detections": [d.model_dump() for d in dets],
-        "timings": {"inference_ms": round(dt, 2), "end_to_end_ms": round(dt, 2)},
+        "timings": {
+            "preprocess_ms": round(timings["preprocess_ms"], 2),
+            "inference_ms": round(timings["inference_ms"], 2),
+            "postprocess_ms": round(timings["postprocess_ms"], 2),
+            "end_to_end_ms": round(e2e, 2),
+        },
         "backend": backend,
         "count": len(dets),
     }
