@@ -74,7 +74,8 @@ export function useDetectionSocket(autoStart = false): DetectionSocket {
         setDetections(msg.detections ?? []);
         setBackend(msg.backend ?? '');
         setInferenceMs(msg.timings?.inference_ms ?? 0);
-        if (msg.dropped) setDroppedCount((c) => c + 1);
+        // Server-side cumulative total — adopt it, don't accumulate it again.
+        setDroppedCount(msg.dropped ?? 0);
 
         const now = performance.now();
         const times = frameTimes.current;

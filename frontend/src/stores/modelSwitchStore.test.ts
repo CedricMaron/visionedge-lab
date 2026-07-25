@@ -1,7 +1,16 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { buildInferenceConfig, useModelSwitchStore, DEFAULT_DRAFT } from './modelSwitchStore';
 import { api } from '@/services/api';
-import type { SwitchResponse } from '@/types';
+import type { ExecutionLocation, SwitchResponse } from '@/types';
+
+// The backend's ExecutionLocation enum (backend/app/core/types.py). A value outside
+// this set is rejected with 422 before the switch is ever attempted.
+const BACKEND_EXECUTION_LOCATIONS: ExecutionLocation[] = [
+  'pc_local',
+  'phone_local',
+  'local_server',
+  'remote_server',
+];
 
 describe('buildInferenceConfig', () => {
   it('composes a valid InferenceConfig and sorts class ids', () => {
@@ -15,9 +24,13 @@ describe('buildInferenceConfig', () => {
       input_size: 640,
       confidence: 0.25,
       iou: 0.45,
-      execution_location: 'server',
+      execution_location: 'pc_local',
       allowed_class_ids: [1, 3, 5],
     });
+  });
+
+  it('defaults to an execution_location the backend actually accepts', () => {
+    expect(BACKEND_EXECUTION_LOCATIONS).toContain(DEFAULT_DRAFT.execution_location);
   });
 });
 

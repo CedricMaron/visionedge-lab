@@ -149,11 +149,13 @@ export interface InferResponse {
 }
 
 // WebSocket frame result.
+// `dropped` is the server's CUMULATIVE drop count for the session, not a per-frame
+// flag — the backend increments it whenever a frame is superseded before inference.
 export interface WsDetectResult {
   frame_id: number;
   detections: Detection[];
   timings: { inference_ms: number };
-  dropped: boolean;
+  dropped: number;
   backend: string;
 }
 
@@ -161,7 +163,9 @@ export interface WsDetectResult {
 /* Inference configuration / switching                                 */
 /* ------------------------------------------------------------------ */
 
-export type ExecutionLocation = 'server' | 'browser' | 'edge';
+// Mirrors backend/app/core/types.py::ExecutionLocation. The backend validates this
+// against its enum, so any other value is rejected with 422 before a switch runs.
+export type ExecutionLocation = 'pc_local' | 'phone_local' | 'local_server' | 'remote_server';
 
 export interface InferenceConfig {
   model_id: string;
@@ -276,4 +280,14 @@ export interface VLMResponse {
 
 export interface VlmModelsResponse {
   models: VlmModelEntry[];
+}
+
+// Every /api/vlm answer is wrapped in this envelope: the model's response plus the
+// detector grounding it was given, the agreement check against the detector, and the
+// standing disclaimer. The VLMResponse itself lives under `response`.
+export interface VlmAnswer {
+  response: VLMResponse;
+  grounding: Record<string, unknown> | null;
+  agreement: Record<string, unknown> | null;
+  disclaimer: string;
 }

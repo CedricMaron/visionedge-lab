@@ -24,7 +24,7 @@ export const DEFAULT_DRAFT: DraftConfig = {
   input_size: 640,
   confidence: 0.25,
   iou: 0.45,
-  execution_location: 'server',
+  execution_location: 'pc_local',
 };
 
 interface ModelSwitchState {

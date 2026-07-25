@@ -3,7 +3,7 @@
 // call surfaces availability honestly rather than faking a response.
 
 import { ApiError, http } from './http';
-import type { VLMResponse, VlmModelsResponse } from '@/types';
+import type { VlmAnswer, VlmModelsResponse } from '@/types';
 
 export class VlmUnavailableError extends Error {
   constructor(message = 'VLM slice not enabled in this build') {
@@ -36,28 +36,30 @@ export const vlmApi = {
     }
   },
 
+  // /api/vlm/analyze-image takes `prompt` (free-form instruction), not `question`.
   analyzeImage: async (
     file: Blob,
-    opts: { question?: string; ground?: boolean } = {},
-  ): Promise<VLMResponse> => {
+    opts: { prompt?: string; ground?: boolean; structured?: boolean } = {},
+  ): Promise<VlmAnswer> => {
     const form = new FormData();
     form.append('file', file, 'frame.jpg');
-    if (opts.question) form.append('question', opts.question);
+    if (opts.prompt) form.append('prompt', opts.prompt);
     if (opts.ground !== undefined) form.append('ground', String(opts.ground));
+    if (opts.structured !== undefined) form.append('structured', String(opts.structured));
     try {
-      return await http.postForm<VLMResponse>('/api/vlm/analyze-image', form);
+      return await http.postForm<VlmAnswer>('/api/vlm/analyze-image', form);
     } catch (err) {
       return mapUnavailable(err);
     }
   },
 
-  ask: async (file: Blob, question: string, ground: boolean): Promise<VLMResponse> => {
+  ask: async (file: Blob, question: string, ground: boolean): Promise<VlmAnswer> => {
     const form = new FormData();
     form.append('file', file, 'frame.jpg');
     form.append('question', question);
     form.append('ground', String(ground));
     try {
-      return await http.postForm<VLMResponse>('/api/vlm/ask', form);
+      return await http.postForm<VlmAnswer>('/api/vlm/ask', form);
     } catch (err) {
       return mapUnavailable(err);
     }

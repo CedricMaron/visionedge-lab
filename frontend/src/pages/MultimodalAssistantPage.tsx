@@ -67,7 +67,7 @@ export default function MultimodalAssistantPage() {
     setResponse(null);
     try {
       const res = await vlmApi.ask(file, question, ground);
-      setResponse(res);
+      setResponse(res.response);
     } catch (err) {
       if (err instanceof VlmUnavailableError) {
         setAvailable('no');

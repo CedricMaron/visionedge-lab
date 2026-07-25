@@ -6,10 +6,16 @@ import { useClassStore } from '@/stores/classStore';
 import { ModelCard } from '@/components/ModelCard';
 import { PageHeader, Spinner, ErrorState, Field } from '@/components/ui';
 import { Icon } from '@/components/Icon';
-import type { ModelEntry, ModelsResponse } from '@/types';
+import type { ExecutionLocation, ModelEntry, ModelsResponse } from '@/types';
 
 const INPUT_SIZES = [320, 416, 512, 640, 960, 1280];
-const EXEC_LOCATIONS = ['server', 'browser', 'edge'] as const;
+// Must match the backend ExecutionLocation enum exactly — anything else is a 422.
+const EXEC_LOCATIONS: { value: ExecutionLocation; label: string }[] = [
+  { value: 'pc_local', label: 'PC (local)' },
+  { value: 'phone_local', label: 'Phone (local)' },
+  { value: 'local_server', label: 'Local server' },
+  { value: 'remote_server', label: 'Remote server' },
+];
 
 export default function ModelSelectorPage() {
   const { data, error, loading, reload } = useAsync<ModelsResponse>((s) => api.models(s), []);
@@ -22,7 +28,8 @@ export default function ModelSelectorPage() {
 
   const [selected, setSelected] = useState<ModelEntry | null>(null);
 
-  const models = data?.detection_models ?? [];
+  // Memoized so the effect below doesn't re-run on every render.
+  const models = useMemo(() => data?.detection_models ?? [], [data]);
 
   useEffect(() => {
     if (!selected && models.length > 0) setSelected(models[0]);
@@ -137,12 +144,12 @@ export default function ModelSelectorPage() {
                       className="input"
                       value={draft.execution_location}
                       onChange={(e) =>
-                        setDraft({ execution_location: e.target.value as (typeof EXEC_LOCATIONS)[number] })
+                        setDraft({ execution_location: e.target.value as ExecutionLocation })
                       }
                     >
                       {EXEC_LOCATIONS.map((l) => (
-                        <option key={l} value={l}>
-                          {l}
+                        <option key={l.value} value={l.value}>
+                          {l.label}
                         </option>
                       ))}
                     </select>
