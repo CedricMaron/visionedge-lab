@@ -11,6 +11,7 @@ import type {
   HealthResponse,
   InferResponse,
   InferenceConfig,
+  JobsResponse,
   ModelsResponse,
   RuntimeStatus,
   SessionsResponse,
@@ -44,6 +45,8 @@ export const api = {
 
   benchmarkComparison: (signal?: AbortSignal) =>
     http.get<BenchmarkComparisonResponse>('/api/benchmarks/comparison', undefined, signal),
+
+  jobs: (signal?: AbortSignal) => http.get<JobsResponse>('/api/jobs', undefined, signal),
 
   switchDetection: (config: InferenceConfig) =>
     http.postJson<SwitchResponse>('/api/detection/switch', config),
