@@ -77,6 +77,15 @@ async def benchmarks(request: Request, limit: int = 100):
     return {"benchmarks": get_state(request).db.list_benchmarks(limit)}
 
 
+@router.get("/api/jobs")
+async def jobs(request: Request):
+    """Background job status. Empty when the jobs subsystem is not wired."""
+    state = get_state(request)
+    if state.jobs is None:
+        return {"jobs": []}
+    return {"jobs": [rec.to_dict() for rec in state.jobs.list()]}
+
+
 @router.get("/api/sessions")
 async def sessions(request: Request, limit: int = 100):
     return {"sessions": get_state(request).db.list_sessions(limit)}

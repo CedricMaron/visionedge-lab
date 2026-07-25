@@ -73,3 +73,27 @@ def test_cancelled_job_stores_no_row(state):
     state.jobs.wait("b3", timeout=120)
 
     assert state.db.list_benchmarks() == []
+
+
+def test_switch_submits_a_benchmark_job_and_rollback_does_not():
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    with TestClient(create_app()) as c:
+        ok = c.post("/api/detection/switch", json={
+            "model_id": "yolov8n-onnx", "runtime": "onnxruntime-cpu",
+            "execution_location": "pc_local",
+        })
+        assert ok.json()["ok"] is True
+        jobs = c.get("/api/jobs").json()["jobs"]
+        assert len([j for j in jobs if j["kind"] == "benchmark"]) == 1
+
+        bad = c.post("/api/detection/switch", json={
+            "model_id": "does-not-exist", "runtime": "onnxruntime-cpu",
+            "execution_location": "pc_local",
+        })
+        assert bad.json()["ok"] is False
+        jobs_after = c.get("/api/jobs").json()["jobs"]
+        # The failed switch added nothing.
+        assert len([j for j in jobs_after if j["kind"] == "benchmark"]) == 1

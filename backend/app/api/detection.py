@@ -8,16 +8,20 @@ from __future__ import annotations
 
 import asyncio
 import time
+import uuid
 
 from fastapi import APIRouter, File, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
 from starlette.concurrency import run_in_threadpool
 
 from app.api.imaging import decode_image_bytes
+from app.benchmarking.auto import BENCHMARK_JOB_KIND
+from app.benchmarking.auto import DEFAULT_RUNS as AUTO_BENCHMARK_RUNS
 from app.core.errors import VisionEdgeError
 from app.core.logging import get_logger
 from app.core.state import get_state
 from app.core.types import ExecutionLocation
 from app.inference.config import InferenceConfig
+from app.jobs.state import TERMINAL_STATES
 from app.monitoring.metrics import ACTIVE_SESSIONS, FRAMES_DROPPED, FRAMES_TOTAL, INFERENCE_LATENCY
 
 log = get_logger("api.detection")
@@ -56,14 +60,36 @@ async def infer(
     }
 
 
+def _start_auto_benchmark(state) -> None:
+    """Measure the newly loaded model in the background.
+
+    A new model invalidates any benchmark still running, since the backend it was
+    measuring has been unloaded — those jobs are cancelled and store nothing.
+    """
+    if state.jobs is None:
+        return
+    for rec in state.jobs.list():
+        if rec.kind == BENCHMARK_JOB_KIND and rec.state not in TERMINAL_STATES:
+            try:
+                state.jobs.cancel(rec.job_id)
+            except ValueError:  # already terminal — nothing to cancel
+                pass
+    job_id = f"benchmark-{uuid.uuid4().hex[:8]}"
+    state.jobs.submit(job_id, BENCHMARK_JOB_KIND, {"runs": AUTO_BENCHMARK_RUNS})
+    state.jobs.start(job_id)
+
+
 @router.post("/detection/switch")
 async def switch_model(request: Request, cfg: InferenceConfig):
     """Switch the active detection configuration (with rollback on failure)."""
     state = get_state(request)
     if state.detection.config is None:
-        result = await run_in_threadpool(state.detection.initialize, cfg)
+        await run_in_threadpool(state.detection.initialize, cfg)
+        _start_auto_benchmark(state)
         return {"ok": True, "config": cfg.model_dump(mode="json"), "message": "initialized"}
     result = await run_in_threadpool(state.detection.switch, cfg)
+    if result.ok:
+        _start_auto_benchmark(state)
     return result.as_dict()
 
 
