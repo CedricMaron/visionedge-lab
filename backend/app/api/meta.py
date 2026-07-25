@@ -77,6 +77,26 @@ async def benchmarks(request: Request, limit: int = 100):
     return {"benchmarks": get_state(request).db.list_benchmarks(limit)}
 
 
+@router.get("/api/benchmarks/comparison")
+async def benchmarks_comparison(request: Request):
+    """Per-configuration comparison of stored benchmark runs, aggregated by median."""
+    state = get_state(request)
+    return {
+        "groups": state.db.benchmark_groups(),
+        "note": ("Median across runs, never the best. Only comparable within this host; "
+                 "rows flagged any_concurrent_traffic were measured while live inference ran."),
+    }
+
+
+@router.get("/api/jobs")
+async def jobs(request: Request):
+    """Background job status. Empty when the jobs subsystem is not wired."""
+    state = get_state(request)
+    if state.jobs is None:
+        return {"jobs": []}
+    return {"jobs": [rec.to_dict() for rec in state.jobs.list()]}
+
+
 @router.get("/api/sessions")
 async def sessions(request: Request, limit: int = 100):
     return {"sessions": get_state(request).db.list_sessions(limit)}

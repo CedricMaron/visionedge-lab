@@ -6,7 +6,12 @@ import { PageHeader, Spinner, ErrorState, Badge, Field } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { StatCard } from '@/components/StatCard';
 import { formatMb, formatMs } from '@/utils/format';
-import type { BenchmarkResult, BenchmarksResponse } from '@/types';
+import type {
+  BenchmarkComparisonResponse,
+  BenchmarkComparisonRow,
+  BenchmarkResult,
+  BenchmarksResponse,
+} from '@/types';
 
 function BenchTable({ rows, highlightFirst }: { rows: BenchmarkResult[]; highlightFirst?: boolean }) {
   return (
@@ -63,8 +68,66 @@ function BenchTable({ rows, highlightFirst }: { rows: BenchmarkResult[]; highlig
   );
 }
 
+export function ComparisonTable({ rows }: { rows: BenchmarkComparisonRow[] }) {
+  return (
+    <div className="card overflow-x-auto">
+      <table className="w-full min-w-[680px] text-sm">
+        <thead>
+          <tr className="border-b border-surface-700 text-left text-xs uppercase tracking-wide text-slate-500">
+            <th className="px-3 py-2.5">Model</th>
+            <th className="px-3 py-2.5">Device / provider</th>
+            <th className="px-3 py-2.5">Input</th>
+            <th className="px-3 py-2.5 text-right">Median FPS</th>
+            <th className="px-3 py-2.5 text-right">Median p50</th>
+            <th className="px-3 py-2.5 text-right">Runs</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((g) => (
+            <tr
+              key={`${g.model_id}-${g.provider}-${g.input_size}-${g.precision}`}
+              className="border-b border-surface-800 last:border-0"
+            >
+              <td className="px-3 py-2.5 font-mono text-xs text-slate-200">
+                {g.model_id}
+                {g.any_concurrent_traffic && (
+                  <span
+                    className="pill ml-2 bg-warn/15 text-warn"
+                    title="Measured while live inference was running — the machine was loaded"
+                  >
+                    loaded
+                  </span>
+                )}
+              </td>
+              <td className="px-3 py-2.5 text-slate-400">
+                {g.device} / {g.provider ?? '—'}
+              </td>
+              <td className="px-3 py-2.5 font-mono text-slate-300">{g.input_size}</td>
+              <td className="px-3 py-2.5 text-right font-mono text-accent">
+                {g.median_fps?.toFixed(1) ?? '—'}
+              </td>
+              <td className="px-3 py-2.5 text-right font-mono text-slate-300">
+                {g.median_p50_ms !== null ? formatMs(g.median_p50_ms) : '—'}
+              </td>
+              <td className="px-3 py-2.5 text-right font-mono text-slate-400">n={g.n}</td>
+            </tr>
+          ))}
+          {rows.length === 0 && (
+            <tr>
+              <td colSpan={6} className="px-3 py-6 text-center text-slate-500">
+                No benchmarks recorded yet. Switch a model to record one automatically.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function BenchmarksPage() {
   const history = useAsync<BenchmarksResponse>((s) => api.benchmarks(s), []);
+  const comparison = useAsync<BenchmarkComparisonResponse>((s) => api.benchmarkComparison(s), []);
   const [runs, setRuns] = useState(50);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<BenchmarkResult | null>(null);
@@ -132,7 +195,16 @@ export default function BenchmarksPage() {
         </div>
       )}
 
-      <h2 className="label mb-2">History</h2>
+      <h2 className="label mb-2 mt-6">Model comparison (median across runs)</h2>
+      <p className="mb-2 text-xs text-slate-500">
+        Median rather than best, so one lucky run can&apos;t flatter a model. Only comparable
+        within this host. Rows marked <span className="text-warn">loaded</span> were measured
+        while live inference was running.
+      </p>
+      {comparison.error && <ErrorState message={comparison.error} onRetry={comparison.reload} />}
+      <ComparisonTable rows={comparison.data?.groups ?? []} />
+
+      <h2 className="label mb-2 mt-6">History</h2>
       {history.loading && <Spinner label="Loading benchmark history…" />}
       {history.error && <ErrorState message={history.error} onRetry={history.reload} />}
       {history.data && <BenchTable rows={history.data.benchmarks} />}

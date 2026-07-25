@@ -136,8 +136,12 @@ export interface Detection {
   modelVersion: string;
 }
 
+// Real per-stage split measured by predict_timed on the backend — these are four
+// distinct measurements, not one value repeated.
 export interface InferTimings {
+  preprocess_ms: number;
   inference_ms: number;
+  postprocess_ms: number;
   end_to_end_ms: number;
 }
 
@@ -245,6 +249,28 @@ export interface BenchmarksResponse {
   benchmarks: BenchmarkResult[];
 }
 
+// One configuration's aggregated benchmark history. Median, never best — see
+// backend/app/storage/db.py::benchmark_groups.
+export interface BenchmarkComparisonRow {
+  model_id: string;
+  backend: string;
+  provider: string | null;
+  device: string;
+  input_size: number;
+  precision: string;
+  n: number;
+  median_fps: number | null;
+  median_p50_ms: number | null;
+  latest_ts: number;
+  latest_fps: number | null;
+  any_concurrent_traffic: boolean;
+}
+
+export interface BenchmarkComparisonResponse {
+  groups: BenchmarkComparisonRow[];
+  note: string;
+}
+
 /* ------------------------------------------------------------------ */
 /* Sessions                                                            */
 /* ------------------------------------------------------------------ */
@@ -269,17 +295,43 @@ export interface VLMResponse {
   model_id: string;
   runtime: string;
   execution_location: string;
-  prompt_tokens: number;
-  generated_tokens: number;
-  time_to_first_token_ms: number;
+  // Nullable in backend/app/core/types.py::VLMResponse — a backend that cannot
+  // report a metric sends null rather than a fabricated zero.
+  prompt_tokens: number | null;
+  generated_tokens: number | null;
+  time_to_first_token_ms: number | null;
   generation_latency_ms: number;
   total_latency_ms: number;
-  memory_usage_mb: number;
+  memory_usage_mb: number | null;
   warnings: string[];
 }
 
 export interface VlmModelsResponse {
   models: VlmModelEntry[];
+}
+
+/* ------------------------------------------------------------------ */
+/* Background jobs                                                     */
+/* ------------------------------------------------------------------ */
+
+// Mirrors backend/app/jobs/state.py::JobRecord.
+export interface JobRecord {
+  job_id: string;
+  kind: string;
+  params: Record<string, unknown>;
+  state: string;
+  progress: number;
+  total_steps: number;
+  current_step: number;
+  metrics: Record<string, number>;
+  error: string | null;
+  checkpoint_path: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface JobsResponse {
+  jobs: JobRecord[];
 }
 
 // Every /api/vlm answer is wrapped in this envelope: the model's response plus the

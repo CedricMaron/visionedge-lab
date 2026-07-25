@@ -43,8 +43,8 @@ export function VLMResponsePanel({ response }: { response: VLMResponse }) {
         <StatCard label="Time to first token" value={formatMs(response.time_to_first_token_ms)} icon="clock" />
         <StatCard label="Generation" value={formatMs(response.generation_latency_ms)} icon="clock" />
         <StatCard label="Total latency" value={formatMs(response.total_latency_ms)} icon="gauge" tone="accent" />
-        <StatCard label="Prompt tokens" value={response.prompt_tokens} />
-        <StatCard label="Generated tokens" value={response.generated_tokens} />
+        <StatCard label="Prompt tokens" value={response.prompt_tokens ?? '—'} />
+        <StatCard label="Generated tokens" value={response.generated_tokens ?? '—'} />
         <StatCard label="Memory" value={formatMb(response.memory_usage_mb)} icon="chip" />
       </div>
 

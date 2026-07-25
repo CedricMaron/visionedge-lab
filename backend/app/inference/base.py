@@ -62,16 +62,39 @@ class BaseDetectionBackend:
         except Exception:
             return None
 
+    def benchmark_frame(self) -> np.ndarray:
+        """Deterministic mid-gray frame, so results reflect the runtime path, not scene content."""
+        return np.full((self.input_size, self.input_size, 3), 128, dtype=np.uint8)
+
+    def result_from_latencies(self, latencies: list[float], notes: str = "") -> BenchmarkResult:
+        """Build a BenchmarkResult from measured latencies. Values are never synthesized."""
+        arr = np.array(latencies)
+        return BenchmarkResult(
+            backend=self.backend_name,
+            model_id=self.model_id,
+            input_size=self.input_size,
+            precision=self.precision,
+            device=self.device,
+            runs=len(latencies),
+            fps=float(1000.0 / arr.mean()) if arr.mean() > 0 else 0.0,
+            latency_mean_ms=float(arr.mean()),
+            latency_p50_ms=float(np.percentile(arr, 50)),
+            latency_p95_ms=float(np.percentile(arr, 95)),
+            latency_p99_ms=float(np.percentile(arr, 99)),
+            memory_rss_mb=self._rss_mb(),
+            provider=getattr(self, "provider", None),
+            notes=notes,
+        )
+
     def benchmark(self, runs: int = 30) -> BenchmarkResult:
         """Run ``runs`` inferences on a synthetic frame and measure latency.
 
-        Values are always measured here, never hardcoded. Uses a mid-gray frame so
-        the result reflects the runtime path, not scene content.
+        Values are always measured here, never hardcoded.
         """
         if self._health not in (HealthState.READY, HealthState.DEGRADED):
             raise RuntimeError("backend not ready for benchmarking")
 
-        frame = np.full((self.input_size, self.input_size, 3), 128, dtype=np.uint8)
+        frame = self.benchmark_frame()
         # small warm set excluded from timing
         for _ in range(3):
             self.predict(frame, 0.25, 0.45, None)
@@ -82,19 +105,4 @@ class BaseDetectionBackend:
             self.predict(frame, 0.25, 0.45, None)
             lat.append((time.perf_counter() - t0) * 1000.0)
 
-        arr = np.array(lat)
-        return BenchmarkResult(
-            backend=self.backend_name,
-            model_id=self.model_id,
-            input_size=self.input_size,
-            precision=self.precision,
-            device=self.device,
-            runs=len(lat),
-            fps=float(1000.0 / arr.mean()) if arr.mean() > 0 else 0.0,
-            latency_mean_ms=float(arr.mean()),
-            latency_p50_ms=float(np.percentile(arr, 50)),
-            latency_p95_ms=float(np.percentile(arr, 95)),
-            latency_p99_ms=float(np.percentile(arr, 99)),
-            memory_rss_mb=self._rss_mb(),
-            provider=getattr(self, "provider", None),
-        )
+        return self.result_from_latencies(lat)

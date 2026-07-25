@@ -8,16 +8,20 @@ from __future__ import annotations
 
 import asyncio
 import time
+import uuid
 
 from fastapi import APIRouter, File, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
 from starlette.concurrency import run_in_threadpool
 
 from app.api.imaging import decode_image_bytes
+from app.benchmarking.auto import BENCHMARK_JOB_KIND
+from app.benchmarking.auto import DEFAULT_RUNS as AUTO_BENCHMARK_RUNS
 from app.core.errors import VisionEdgeError
 from app.core.logging import get_logger
 from app.core.state import get_state
 from app.core.types import ExecutionLocation
 from app.inference.config import InferenceConfig
+from app.jobs.state import TERMINAL_STATES
 from app.monitoring.metrics import ACTIVE_SESSIONS, FRAMES_DROPPED, FRAMES_TOTAL, INFERENCE_LATENCY
 
 log = get_logger("api.detection")
@@ -41,19 +45,45 @@ async def infer(
     allowed = {int(c) for c in classes.split(",") if c.strip().isdigit()} if classes else None
 
     t0 = time.perf_counter()
-    dets = await run_in_threadpool(state.detection.predict, img, confidence, iou, allowed)
-    dt = (time.perf_counter() - t0) * 1000.0
+    dets, timings = await run_in_threadpool(
+        state.detection.predict_timed, img, confidence, iou, allowed
+    )
+    e2e = (time.perf_counter() - t0) * 1000.0
 
     backend = state.detection.config.runtime if state.detection.config else "none"
-    state.metrics.record(dt, dt)
+    state.metrics.record(timings["inference_ms"], e2e)
     FRAMES_TOTAL.labels(backend=backend).inc()
-    INFERENCE_LATENCY.labels(backend=backend).observe(dt)
+    INFERENCE_LATENCY.labels(backend=backend).observe(timings["inference_ms"])
     return {
         "detections": [d.model_dump() for d in dets],
-        "timings": {"inference_ms": round(dt, 2), "end_to_end_ms": round(dt, 2)},
+        "timings": {
+            "preprocess_ms": round(timings["preprocess_ms"], 2),
+            "inference_ms": round(timings["inference_ms"], 2),
+            "postprocess_ms": round(timings["postprocess_ms"], 2),
+            "end_to_end_ms": round(e2e, 2),
+        },
         "backend": backend,
         "count": len(dets),
     }
+
+
+def _start_auto_benchmark(state) -> None:
+    """Measure the newly loaded model in the background.
+
+    A new model invalidates any benchmark still running, since the backend it was
+    measuring has been unloaded — those jobs are cancelled and store nothing.
+    """
+    if state.jobs is None:
+        return
+    for rec in state.jobs.list():
+        if rec.kind == BENCHMARK_JOB_KIND and rec.state not in TERMINAL_STATES:
+            try:
+                state.jobs.cancel(rec.job_id)
+            except ValueError:  # already terminal — nothing to cancel
+                pass
+    job_id = f"benchmark-{uuid.uuid4().hex[:8]}"
+    state.jobs.submit(job_id, BENCHMARK_JOB_KIND, {"runs": AUTO_BENCHMARK_RUNS})
+    state.jobs.start(job_id)
 
 
 @router.post("/detection/switch")
@@ -61,9 +91,12 @@ async def switch_model(request: Request, cfg: InferenceConfig):
     """Switch the active detection configuration (with rollback on failure)."""
     state = get_state(request)
     if state.detection.config is None:
-        result = await run_in_threadpool(state.detection.initialize, cfg)
+        await run_in_threadpool(state.detection.initialize, cfg)
+        _start_auto_benchmark(state)
         return {"ok": True, "config": cfg.model_dump(mode="json"), "message": "initialized"}
     result = await run_in_threadpool(state.detection.switch, cfg)
+    if result.ok:
+        _start_auto_benchmark(state)
     return result.as_dict()
 
 

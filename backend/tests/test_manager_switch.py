@@ -81,6 +81,49 @@ def test_switch_records_events(manager):
     assert "switch_failed_rollback" in kinds
 
 
+def test_benchmark_does_not_hold_the_lock_for_the_whole_run(manager):
+    """A live frame must interleave with benchmark runs, not queue behind all of them.
+
+    Measured against the benchmark's own wall time rather than a single-run sample,
+    because per-inference latency on a loaded CPU varies by 3x and would make the
+    threshold meaningless. Interleaving correctly, the live frame waits for roughly
+    one in-flight inference (~8% of a 20-run benchmark here); holding the lock for
+    the whole loop puts it at ~100%.
+    """
+    import threading
+    import time
+
+    blocked_ms: list[float] = []
+    bench_ms: list[float] = []
+
+    def predict_once():
+        t0 = time.perf_counter()
+        manager.predict(np.zeros((640, 640, 3), np.uint8))
+        blocked_ms.append((time.perf_counter() - t0) * 1000.0)
+
+    def run_bench():
+        t0 = time.perf_counter()
+        manager.benchmark(runs=20)
+        bench_ms.append((time.perf_counter() - t0) * 1000.0)
+
+    t = threading.Thread(target=predict_once)
+    bench = threading.Thread(target=run_bench)
+    bench.start()
+    time.sleep(0.01)
+    t.start()
+    t.join()
+    bench.join()
+
+    assert blocked_ms and bench_ms
+    assert blocked_ms[0] < bench_ms[0] * 0.5
+
+
+def test_benchmark_records_notes(manager):
+    result = manager.benchmark(runs=3, notes="measured with 7 concurrent live frames")
+    assert result.notes == "measured with 7 concurrent live frames"
+    assert result.runs == 3
+
+
 def test_benchmark_returns_measured_values(manager):
     result = manager.benchmark(runs=5)
     assert result.runs == 5

@@ -53,6 +53,7 @@ export class ServerInferenceBackend implements InferenceBackend {
       detections: res.detections,
       inferenceMs: res.timings.inference_ms,
       backend: res.backend,
+      timings: res.timings,
     };
   }
 

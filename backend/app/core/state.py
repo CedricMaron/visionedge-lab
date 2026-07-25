@@ -9,10 +9,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from app.benchmarking.auto import make_job_factory
 from app.capabilities.scanner import BackendCapabilities, scan_capabilities
 from app.core.config import Settings, get_settings
 from app.inference.config import InferenceConfig
 from app.inference.manager import DetectionManager
+from app.jobs.manager import JobManager
 from app.models.registry import ModelRegistry, load_registry, refresh_deployment_status
 from app.monitoring.metrics import RollingMetrics
 from app.storage.db import Database
@@ -30,6 +32,7 @@ class AppState:
     detection: DetectionManager
     metrics: RollingMetrics
     vlm: VLMManager | None = None
+    jobs: JobManager | None = None
     startup_warnings: list[str] = field(default_factory=list)
 
 
@@ -68,10 +71,13 @@ def build_state() -> AppState:
     except Exception as exc:  # noqa: BLE001
         warnings.append(f"vlm manager unavailable: {exc}")
 
-    return AppState(
+    state = AppState(
         settings=settings, capabilities=caps, registry=registry, db=db,
         detection=detection, metrics=metrics, vlm=vlm, startup_warnings=warnings,
     )
+    # Attached after construction: the job factory closes over the finished state.
+    state.jobs = JobManager(factory=make_job_factory(state))
+    return state
 
 
 def get_state(request) -> AppState:

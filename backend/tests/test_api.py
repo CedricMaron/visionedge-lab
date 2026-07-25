@@ -69,3 +69,16 @@ def test_vlm_analyze_grounded(client):
 def test_runtime_status(client):
     d = client.get("/api/runtime-status").json()
     assert "detection" in d and "runtimes" in d
+
+
+def test_infer_returns_a_real_timing_breakdown(client):
+    if not SAMPLE.exists():
+        pytest.skip("sample image not installed")
+    with open(SAMPLE, "rb") as f:
+        r = client.post("/api/infer", files={"file": ("bus.jpg", f.read(), "image/jpeg")})
+    t = r.json()["timings"]
+    for key in ("preprocess_ms", "inference_ms", "postprocess_ms", "end_to_end_ms"):
+        assert key in t and t[key] >= 0.0
+    parts = t["preprocess_ms"] + t["inference_ms"] + t["postprocess_ms"]
+    assert parts <= t["end_to_end_ms"] + 1.0        # parts fit inside the whole
+    assert t["inference_ms"] < t["end_to_end_ms"]   # not the same number twice

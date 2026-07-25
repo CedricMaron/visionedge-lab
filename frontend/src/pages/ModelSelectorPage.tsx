@@ -6,7 +6,7 @@ import { useClassStore } from '@/stores/classStore';
 import { ModelCard } from '@/components/ModelCard';
 import { PageHeader, Spinner, ErrorState, Field } from '@/components/ui';
 import { Icon } from '@/components/Icon';
-import type { ExecutionLocation, ModelEntry, ModelsResponse } from '@/types';
+import type { ExecutionLocation, JobRecord, ModelEntry, ModelsResponse } from '@/types';
 
 const INPUT_SIZES = [320, 416, 512, 640, 960, 1280];
 // Must match the backend ExecutionLocation enum exactly — anything else is a 422.
@@ -17,12 +17,69 @@ const EXEC_LOCATIONS: { value: ExecutionLocation; label: string }[] = [
   { value: 'remote_server', label: 'Remote server' },
 ];
 
+const TERMINAL_JOB_STATES = ['completed', 'failed', 'stopped'];
+
+export function BenchmarkJobStatus({ job }: { job: JobRecord | null }) {
+  if (!job) return null;
+  if (job.state === 'failed') {
+    return (
+      <p className="mt-2 text-sm text-bad">Benchmark failed: {job.error ?? 'unknown error'}</p>
+    );
+  }
+  if (job.state === 'running' || job.state === 'queued') {
+    return (
+      <p className="mt-2 text-sm text-slate-400">
+        Benchmarking this model in the background… {job.current_step} / {job.total_steps} runs
+      </p>
+    );
+  }
+  if (job.state === 'completed') {
+    return <p className="mt-2 text-sm text-good">Benchmark recorded — see the Benchmarks page.</p>;
+  }
+  return null;
+}
+
+/** Poll the newest benchmark job after a successful switch until it finishes. */
+function useBenchmarkJob(switchStatus: string): JobRecord | null {
+  const [job, setJob] = useState<JobRecord | null>(null);
+
+  useEffect(() => {
+    if (switchStatus !== 'success') return;
+    let cancelled = false;
+
+    const tick = async () => {
+      try {
+        const { jobs } = await api.jobs();
+        const latest =
+          jobs
+            .filter((j) => j.kind === 'benchmark')
+            .sort((a, b) => b.created_at - a.created_at)[0] ?? null;
+        if (cancelled) return;
+        setJob(latest);
+        if (latest && TERMINAL_JOB_STATES.includes(latest.state)) clearInterval(timer);
+      } catch {
+        // Job status is advisory — a failed poll must not break the page.
+      }
+    };
+
+    const timer = setInterval(tick, 1000);
+    void tick();
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [switchStatus]);
+
+  return job;
+}
+
 export default function ModelSelectorPage() {
   const { data, error, loading, reload } = useAsync<ModelsResponse>((s) => api.models(s), []);
   const draft = useModelSwitchStore((s) => s.draft);
   const setDraft = useModelSwitchStore((s) => s.setDraft);
   const applySwitch = useModelSwitchStore((s) => s.applySwitch);
   const status = useModelSwitchStore((s) => s.status);
+  const benchmarkJob = useBenchmarkJob(status);
   const message = useModelSwitchStore((s) => s.message);
   const selectedIds = useClassStore((s) => s.selectedIds);
 
@@ -211,6 +268,8 @@ export default function ModelSelectorPage() {
                       {message}
                     </div>
                   )}
+
+                  <BenchmarkJobStatus job={benchmarkJob} />
                 </>
               ) : (
                 <p className="text-sm text-slate-500">Select a model to configure.</p>
