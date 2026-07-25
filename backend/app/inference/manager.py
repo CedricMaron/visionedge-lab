@@ -10,10 +10,11 @@ the last known-good backend so inference continues uninterrupted.
 from __future__ import annotations
 
 import threading
+import time
 
 from app.core.errors import ModelLoadError
 from app.core.logging import get_logger
-from app.core.types import Detection, HealthState
+from app.core.types import BenchmarkResult, Detection, HealthState
 from app.inference.base import DetectionBackend
 from app.inference.config import InferenceConfig, validate_against_capabilities
 from app.inference.factory import build_backend
@@ -27,6 +28,10 @@ log = get_logger("inference.manager")
 # "onnxruntime-cuda" while running on the CPU would be a lie the rest of the system
 # (metrics, benchmarks, the UI) would repeat.
 _REQUIRED_DEVICE: dict[str, str] = {"onnxruntime-cuda": "cuda"}
+
+# Pause between benchmark inferences so a waiting live frame can take the lock.
+# See DetectionManager.benchmark for why per-inference locking alone is not enough.
+_BENCHMARK_YIELD_S = 0.002
 
 
 def _verify_runtime_honored(backend: DetectionBackend, cfg: InferenceConfig) -> None:
@@ -173,11 +178,43 @@ class DetectionManager:
                 allowed = set(cfg.allowed_class_ids)
             return self._backend.predict(image, c, i, allowed)
 
-    def benchmark(self, runs: int = 30):
+    def benchmark_step(self, frame) -> float:
+        """One timed inference under the lock. Returns milliseconds.
+
+        The lock is taken per inference so a long benchmark does not freeze live
+        streaming — frames interleave with benchmark runs.
+        """
         with self._lock:
             if self._backend is None:
                 raise ModelLoadError("no backend loaded")
-            return self._backend.benchmark(runs)
+            t0 = time.perf_counter()
+            self._backend.predict(frame, 0.25, 0.45, None)
+            return (time.perf_counter() - t0) * 1000.0
+
+    def benchmark(self, runs: int = 30, notes: str = "", yield_s: float = _BENCHMARK_YIELD_S) -> BenchmarkResult:
+        """Measure ``runs`` inferences, deferring to live traffic between each one.
+
+        ``self._lock`` is an RLock and RLocks are not fair: a tight acquire/release
+        loop re-acquires before a waiting thread is scheduled, so per-inference
+        locking alone still starves live inference (measured: a live frame blocked
+        3.3 s behind a 1.6 s benchmark). Sleeping between steps deschedules this
+        thread and lets a waiter through.
+        """
+        with self._lock:
+            if self._backend is None:
+                raise ModelLoadError("no backend loaded")
+            backend = self._backend
+            frame = backend.benchmark_frame()
+
+        for _ in range(3):  # warm set, excluded from timing
+            self.benchmark_step(frame)
+            time.sleep(yield_s)
+
+        latencies = []
+        for _ in range(max(1, runs)):
+            latencies.append(self.benchmark_step(frame))
+            time.sleep(yield_s)
+        return backend.result_from_latencies(latencies, notes=notes)
 
     def close(self) -> None:
         with self._lock:
