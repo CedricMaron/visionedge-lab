@@ -178,6 +178,18 @@ class DetectionManager:
                 allowed = set(cfg.allowed_class_ids)
             return self._backend.predict(image, c, i, allowed)
 
+    def benchmark_target(self):
+        """Return ``(backend, frame)`` to benchmark, captured under the lock.
+
+        Callers hold the returned backend for the duration of a run so the result
+        is attributed to the model that was actually measured, even if a switch
+        replaces the active backend mid-run.
+        """
+        with self._lock:
+            if self._backend is None:
+                raise ModelLoadError("no backend loaded")
+            return self._backend, self._backend.benchmark_frame()
+
     def benchmark_step(self, frame) -> float:
         """One timed inference under the lock. Returns milliseconds.
 
@@ -200,11 +212,7 @@ class DetectionManager:
         3.3 s behind a 1.6 s benchmark). Sleeping between steps deschedules this
         thread and lets a waiter through.
         """
-        with self._lock:
-            if self._backend is None:
-                raise ModelLoadError("no backend loaded")
-            backend = self._backend
-            frame = backend.benchmark_frame()
+        backend, frame = self.benchmark_target()
 
         for _ in range(3):  # warm set, excluded from timing
             self.benchmark_step(frame)
