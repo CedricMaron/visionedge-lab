@@ -10,9 +10,10 @@ import pytest
 
 from app.capabilities.scanner import scan_capabilities
 from app.core.config import REPO_ROOT
+from app.core.errors import ModelLoadError
 from app.core.types import HealthState
 from app.inference.config import InferenceConfig
-from app.inference.manager import DetectionManager
+from app.inference.manager import DetectionManager, _verify_runtime_honored
 from app.models.registry import load_registry, refresh_deployment_status
 
 MODEL = REPO_ROOT / "models" / "yolov8n.onnx"
@@ -44,6 +45,28 @@ def test_switch_to_cuda_rolls_back(manager):
     assert manager.config.runtime == "onnxruntime-cpu"
     assert manager.health() == HealthState.READY
     assert manager.predict(np.zeros((640, 640, 3), np.uint8)) is not None
+
+
+def test_cuda_runtime_rejected_when_backend_loaded_on_cpu():
+    """Hardware-independent: a CUDA runtime name must not be accepted for a CPU load.
+
+    ONNX Runtime silently falls back to the CPU provider when the CUDA one cannot be
+    created, so the manager verifies the device that actually loaded.
+    """
+    class _FakeBackend:
+        device = "cpu"
+        provider = "CPUExecutionProvider"
+
+    cfg = InferenceConfig(model_id="yolov8n-onnx", runtime="onnxruntime-cuda")
+    with pytest.raises(ModelLoadError, match="requires device 'cuda'"):
+        _verify_runtime_honored(_FakeBackend(), cfg)
+
+    _FakeBackend.device = "cuda"
+    _FakeBackend.provider = "CUDAExecutionProvider"
+    _verify_runtime_honored(_FakeBackend(), cfg)  # honored -> no raise
+
+    # a CPU runtime makes no device promise beyond loading
+    _verify_runtime_honored(_FakeBackend(), InferenceConfig(model_id="yolov8n-onnx"))
 
 
 def test_switch_to_unknown_model_rolls_back(manager):

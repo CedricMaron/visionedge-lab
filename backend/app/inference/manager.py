@@ -21,6 +21,28 @@ from app.models.registry import ModelRegistry
 
 log = get_logger("inference.manager")
 
+# Runtimes whose name is a promise about *where* inference runs. A backend may silently
+# fall back (ONNX Runtime loads the CPU provider when the CUDA one can't be created), so
+# the manager checks what actually loaded before adopting the config — reporting
+# "onnxruntime-cuda" while running on the CPU would be a lie the rest of the system
+# (metrics, benchmarks, the UI) would repeat.
+_REQUIRED_DEVICE: dict[str, str] = {"onnxruntime-cuda": "cuda"}
+
+
+def _verify_runtime_honored(backend: DetectionBackend, cfg: InferenceConfig) -> None:
+    """Raise ModelLoadError if the loaded backend did not honor ``cfg.runtime``."""
+    required = _REQUIRED_DEVICE.get(cfg.runtime)
+    if required is None:
+        return
+    device = getattr(backend, "device", None)
+    if device != required:
+        provider = getattr(backend, "provider", None)
+        raise ModelLoadError(
+            f"runtime '{cfg.runtime}' requires device '{required}' but the backend loaded "
+            f"on '{device}' (provider={provider}). The execution provider could not be "
+            "created — check the CUDA/cuDNN install for this onnxruntime build."
+        )
+
 
 class SwitchResult:
     def __init__(self, ok: bool, config: InferenceConfig, message: str, rolled_back: bool = False) -> None:
@@ -76,6 +98,11 @@ class DetectionManager:
             if backend.health() != HealthState.READY:
                 backend.close()
                 raise ModelLoadError("backend did not reach READY after warmup")
+            try:
+                _verify_runtime_honored(backend, cfg)
+            except ModelLoadError:
+                backend.close()
+                raise
             self._backend = backend
             self._config = cfg
             self._accepting = True
@@ -89,6 +116,7 @@ class DetectionManager:
             prev_config = self._config
             self._accepting = False  # stop accepting new frames
 
+            new_backend: DetectionBackend | None = None
             try:
                 validate_against_capabilities(cfg, self._caps)
                 new_backend = build_backend(cfg, self._registry)
@@ -96,8 +124,14 @@ class DetectionManager:
                 new_backend.warmup()
                 if new_backend.health() != HealthState.READY:
                     raise ModelLoadError("new backend not READY after warmup")
+                _verify_runtime_honored(new_backend, cfg)
             except Exception as exc:  # noqa: BLE001 — must recover gracefully
-                # rollback: keep previous backend running
+                # rollback: release the half-built backend, keep the previous one running
+                if new_backend is not None:
+                    try:
+                        new_backend.close()
+                    except Exception as close_exc:  # noqa: BLE001
+                        log.warning("new_backend_close_failed", error=str(close_exc))
                 self._accepting = prev_backend is not None
                 self._log_event(
                     "switch_failed_rollback",
