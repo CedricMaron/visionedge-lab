@@ -15,6 +15,12 @@
 	# Caddy v2 has no built-in rate_limit directive — it is a third-party plugin
 	# requiring a custom xcaddy build, so this file stays runnable on stock caddy
 	# and the limit applies even if the app is deployed without this proxy.
+	#
+	# The backend keys that limit on X-Forwarded-For, which is safe only because
+	# trusted_proxies is empty here: Caddy discards a client-supplied header and
+	# writes the real peer address. If you ever put Cloudflare or a load balancer
+	# in front, set trusted_proxies to it — otherwise every request arrives with
+	# that proxy's address and all users share a single rate-limit bucket.
 
 	# /health sits outside /api but is part of the backend API surface.
 	handle /health {

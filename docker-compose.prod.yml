@@ -44,6 +44,9 @@ services:
       # explicitly anyway as defence in depth, in case the backend is ever
       # exposed directly.
       - VE_CORS_ORIGINS=https://${SITE_ADDRESS:-visionedge.c-maron.space}
+      # Per-IP cap on endpoints that run a model forward pass. On by default here:
+      # an internet-facing deployment with this unset (0) would be unprotected.
+      - VE_RATE_LIMIT_PER_MIN=${VE_RATE_LIMIT_PER_MIN:-60}
       # Frames are never sent to a remote VLM unless this is deliberately enabled.
       - VE_ALLOW_FRAME_TRANSMISSION=false
       - VE_DB_PATH=/data/visionedge.db

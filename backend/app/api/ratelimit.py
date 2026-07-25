@@ -62,7 +62,17 @@ class FixedWindowLimiter:
 
 
 def client_key(request: Request) -> str:
-    """Identify the caller. Behind a proxy, the first X-Forwarded-For hop."""
+    """Identify the caller: the first X-Forwarded-For hop, else the peer address.
+
+    Trust model: this header is only trustworthy because the reverse proxy in front
+    replaces it. Caddy's ``trusted_proxies`` defaults to empty, so a client-supplied
+    X-Forwarded-For is discarded and rewritten to the real peer — verified against
+    the running stack, where rotating a spoofed header did not win extra quota.
+
+    If another proxy is ever put in front (Cloudflare, a load balancer), configure
+    Caddy's ``trusted_proxies`` for it. Otherwise every request arrives with that
+    proxy's address and all users end up sharing one bucket.
+    """
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
         return forwarded.split(",")[0].strip()
