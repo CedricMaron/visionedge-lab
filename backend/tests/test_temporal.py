@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from app.temporal.anomaly import AnomalyScorer
 from app.temporal.frame_buffer import FrameBuffer
@@ -108,8 +109,5 @@ def test_anomaly_calibrate_then_score():
 
 def test_anomaly_requires_calibration():
     scorer = AnomalyScorer()
-    try:
+    with pytest.raises(RuntimeError):
         scorer.score(1.0)
-        assert False, "expected RuntimeError"
-    except RuntimeError:
-        pass
