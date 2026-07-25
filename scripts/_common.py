@@ -84,6 +84,29 @@ def now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+# --- measurement -----------------------------------------------------------------
+def percentile(values: list[float], pct: float) -> float:
+    """Linear-interpolated percentile of ``values`` (NaN for an empty list)."""
+    if not values:
+        return float("nan")
+    s = sorted(values)
+    k = (len(s) - 1) * (pct / 100.0)
+    lo = int(k)
+    hi = min(lo + 1, len(s) - 1)
+    frac = k - lo
+    return s[lo] * (1 - frac) + s[hi] * frac
+
+
+def rss_mb() -> float:
+    """Resident set size of this process in MB (NaN when psutil is unavailable)."""
+    try:
+        import psutil
+
+        return psutil.Process().memory_info().rss / (1024 * 1024)
+    except Exception:
+        return float("nan")
+
+
 def write_sidecar(model_path: Path, metadata: dict[str, Any]) -> Path:
     """Write ``<model>.json`` next to the produced model and return its path."""
     sidecar = model_path.with_suffix(model_path.suffix + ".json")

@@ -26,26 +26,6 @@ import _common as C
 C.bootstrap_path()
 
 
-def _percentile(values: list[float], pct: float) -> float:
-    if not values:
-        return float("nan")
-    s = sorted(values)
-    k = (len(s) - 1) * (pct / 100.0)
-    lo = int(k)
-    hi = min(lo + 1, len(s) - 1)
-    frac = k - lo
-    return s[lo] * (1 - frac) + s[hi] * frac
-
-
-def _rss_mb() -> float:
-    try:
-        import psutil
-
-        return psutil.Process().memory_info().rss / (1024 * 1024)
-    except Exception:
-        return float("nan")
-
-
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -100,31 +80,31 @@ def main(argv: list[str] | None = None) -> int:
     C.info(f"timing: {args.runs} runs on {image_source}")
     latencies_ms: list[float] = []
     infer_ms: list[float] = []
-    rss_before = _rss_mb()
+    rss_before = C.rss_mb()
     for _ in range(args.runs):
         t0 = time.perf_counter()
         _dets, timings = backend.predict_timed(image, args.conf, args.iou, None)
         t1 = time.perf_counter()
         latencies_ms.append((t1 - t0) * 1000.0)
         infer_ms.append(timings["inference_ms"])
-    rss_after = _rss_mb()
+    rss_after = C.rss_mb()
     backend.close()
 
     mean = statistics.mean(latencies_ms)
     metrics = {
         "end_to_end_ms": {
             "mean": round(mean, 3),
-            "p50": round(_percentile(latencies_ms, 50), 3),
-            "p95": round(_percentile(latencies_ms, 95), 3),
-            "p99": round(_percentile(latencies_ms, 99), 3),
+            "p50": round(C.percentile(latencies_ms, 50), 3),
+            "p95": round(C.percentile(latencies_ms, 95), 3),
+            "p99": round(C.percentile(latencies_ms, 99), 3),
             "min": round(min(latencies_ms), 3),
             "max": round(max(latencies_ms), 3),
             "stdev": round(statistics.pstdev(latencies_ms), 3),
         },
         "inference_only_ms": {
             "mean": round(statistics.mean(infer_ms), 3),
-            "p50": round(_percentile(infer_ms, 50), 3),
-            "p95": round(_percentile(infer_ms, 95), 3),
+            "p50": round(C.percentile(infer_ms, 50), 3),
+            "p95": round(C.percentile(infer_ms, 95), 3),
         },
         "fps_end_to_end": round(1000.0 / mean, 2) if mean > 0 else None,
         "rss_mb_before": round(rss_before, 1),

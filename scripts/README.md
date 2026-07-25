@@ -41,6 +41,7 @@ Every script supports `--help`.
 | `convert_openvino.py` | Convert ONNX to OpenVINO IR (opt-in; clean error if not installed) | `python scripts/convert_openvino.py --input models/yolov8n.onnx --precision fp16` |
 | `build_tensorrt.py` | Build a TensorRT engine (GPU-only, opt-in; clean error if not installed) | `python scripts/build_tensorrt.py --input models/yolov8n.onnx --precision fp16` |
 | `benchmark_model.py` | MEASURE latency (mean/p50/p95/p99), FPS, RSS; write a JSON report | `python scripts/benchmark_model.py --model models/yolov8n.onnx --runs 50` |
+| `benchmark_cpu_vs_cuda.py` | Same model on the CPU vs CUDA provider; reports the provider ORT *actually* used, compares detections, claims a speedup only if CUDA really ran | `python scripts/benchmark_cpu_vs_cuda.py --model models/yolov8n.onnx --runs 50` |
 | `download_models.py` | List registry models / install a single one (with a >5GB guard) | `python scripts/download_models.py --list` |
 | `checksum.py` | sha256 + size; optionally update the registry entry | `python scripts/checksum.py --input models/yolov8n.onnx --update-registry` |
 | `prepare_browser_model.py` | Stage an ONNX for ONNX Runtime Web (Phase 3) with a manifest | `python scripts/prepare_browser_model.py --input models/yolov8n.onnx --fp16` |
@@ -73,6 +74,7 @@ python scripts/benchmark_model.py --model models/yolov8n.int8.onnx --runs 50
 | --- | --- |
 | ONNX export / simplify / FP16 / INT8 (dynamic + static) | Implemented and runs on CPU |
 | ONNX Runtime CPU benchmark + validation | Implemented and runs |
+| ONNX Runtime CUDA provider | Script implemented; on this box the EP **fails to load** (missing CUDA libs) → the comparison says so and claims no speedup |
 | OpenVINO IR conversion | Interface + script implemented; **openvino not installed** → clean error |
 | TensorRT engine build | Interface + script implemented; **tensorrt not installed / no GPU** → clean error |
 | Browser (ONNX Runtime Web) asset prep | Implemented; **browser inference itself is Phase 3** |
