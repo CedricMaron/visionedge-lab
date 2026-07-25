@@ -3,7 +3,7 @@ import { api } from '@/services/api';
 import { ApiError } from '@/services/http';
 import { useDetectionSocket } from '@/hooks/useDetectionSocket';
 import { useClassStore } from '@/stores/classStore';
-import { drawDetections } from '@/components/DetectionOverlay';
+import { drawDetections } from '@/utils/drawDetections';
 import { PageHeader, Badge, Field } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { StatCard } from '@/components/StatCard';
