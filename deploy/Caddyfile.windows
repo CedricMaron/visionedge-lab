@@ -1,0 +1,47 @@
+# VisionEdge Lab — native Windows deployment (no Docker).
+#
+# Same single-origin design as deploy/Caddyfile: Caddy serves the built SPA and
+# proxies the API, so there is no CORS and wss:// is derived from https://.
+# The difference is that the backend runs as a local process rather than a
+# container, so it is reached on 127.0.0.1 instead of a compose service name.
+#
+# Forward slashes are used deliberately: Caddy accepts them on Windows, and a
+# backslash is an escape character inside Caddyfile tokens.
+#
+# Run:
+#   $env:SITE_ADDRESS = "visionedge.c-maron.space"
+#   $env:SITE_ROOT    = "C:/visionedge-lab/frontend/dist"
+#   caddy.exe run --config deploy\Caddyfile.windows
+
+{$SITE_ADDRESS:visionedge.c-maron.space} {
+	encode zstd gzip
+
+	# Rate limiting lives in the backend (app/api/ratelimit.py) — Caddy v2 has no
+	# built-in rate_limit directive. The backend keys on X-Forwarded-For, which is
+	# trustworthy only because trusted_proxies is empty here and Caddy overwrites
+	# any client-supplied value with the real peer address.
+
+	# /health is part of the API surface but sits outside /api.
+	handle /health {
+		reverse_proxy 127.0.0.1:8000
+	}
+
+	handle /api/* {
+		# WebSocket upgrades (/api/ws/detect) need no extra directives.
+		reverse_proxy 127.0.0.1:8000
+	}
+
+	handle {
+		root * {$SITE_ROOT:C:/visionedge-lab/frontend/dist}
+		try_files {path} /index.html
+		file_server
+	}
+
+	log {
+		output file {$SITE_LOG:C:/visionedge-lab/logs/caddy.log} {
+			roll_size 10MiB
+			roll_keep 5
+		}
+		format console
+	}
+}

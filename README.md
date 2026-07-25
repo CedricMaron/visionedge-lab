@@ -233,6 +233,11 @@ python scripts/download_models.py --install yolov8n-onnx
 SITE_ADDRESS=visionedge.c-maron.space docker compose -f docker-compose.prod.yml up -d
 ```
 
+**On a Windows host without WSL2**, the compose file cannot run — those are Linux
+containers, and nested virtualization is disabled on many Windows VPS plans. See
+[`docs/DEPLOY_WINDOWS.md`](docs/DEPLOY_WINDOWS.md) for the native path: same
+single-origin design with Caddy and the backend as ordinary Windows processes.
+
 Set `VE_RATE_LIMIT_PER_MIN` for anything internet-facing — every `/api/infer` and
 `/api/vlm/*` request is a real model forward pass, so an unlimited public endpoint
 is a cost and abuse vector. The limit is enforced in the backend
