@@ -22,6 +22,10 @@ VisionEdge Lab demonstrates three complementary levels of visual intelligence an
 | Model registry, runtime model-switching with rollback | ✅ **Working & tested** |
 | REST inference + WebSocket real-time transport (bounded queue, frame drop) | ✅ **Working** |
 | Benchmarking (measured latency P50/P95/P99, FPS, RSS) | ✅ **Working** — never hardcoded |
+| Auto-benchmark on model switch (background job, one step per inference) | ✅ **Working & tested** — records how much live traffic overlapped the run |
+| Per-model comparison (median across runs, never best, with run count) | ✅ **Working & tested** |
+| Per-stage inference timing (preprocess / inference / postprocess) | ✅ **Working & tested** |
+| Single-origin deployment: Caddy + compose, per-IP rate limiting, TLS | ✅ **Working** — images build, proxy/WSS/limits verified against a running stack |
 | Prometheus `/metrics`, structured JSON logs, SQLite persistence | ✅ **Working** |
 | VLM slice: interface + **mock** backend, detector grounding, structured output, agreement report | ✅ **Working & tested** (mock is deterministic and labelled as such) |
 | Local VLM (SmolVLM) + remote OpenAI-compatible VLM | 🟡 **Implemented, opt-in** — guarded imports; download/enable manually |
@@ -171,6 +175,8 @@ Set `VITE_API_BASE` in `.env` to your PC's LAN IP over **https** (browsers requi
 | `POST /api/detection/benchmark` | Measured benchmark |
 | `WS /api/ws/detect` | Real-time detection (bounded queue, frame dropping) |
 | `GET /api/runtime-status`, `/api/sessions`, `/api/benchmarks` | Status/history |
+| `GET /api/benchmarks/comparison` | Per-model comparison, median across runs with run count |
+| `GET /api/jobs` | Background job status (auto-benchmark progress) |
 | `GET /api/vlm/models`, `POST /api/vlm/analyze-image`, `/api/vlm/ask`, `/api/vlm/analyze-frames` | VLM (mock default) |
 
 ---

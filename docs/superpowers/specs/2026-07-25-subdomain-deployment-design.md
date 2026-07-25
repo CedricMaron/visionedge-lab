@@ -83,8 +83,11 @@ empty in production. The prod compose file must mount it.
 and renewal, which removes a manual TLS step from a portfolio deployment:
 
 ```
-visionedge.c-maron.space {
+{$SITE_ADDRESS:visionedge.c-maron.space} {
     encode zstd gzip
+    handle /health {          # sits outside /api but is part of the API surface
+        reverse_proxy backend:8000
+    }
     handle /api/* {
         reverse_proxy backend:8000
     }
@@ -95,6 +98,11 @@ visionedge.c-maron.space {
     }
 }
 ```
+
+`/health` needs its own route: the frontend calls it and it is not under `/api`, so
+without this it would 404 against the static file server. Validated against the real
+`caddy:2.8-alpine` image (`caddy validate`), which also confirmed automatic HTTPS
+and the HTTP→HTTPS redirect.
 
 Caddy proxies WebSocket upgrades without extra directives.
 
@@ -113,11 +121,24 @@ fetched weights are visible to the backend.
 same-origin deployment work from the same build artifact, with localhost remaining
 the dev default via `.env`. The Settings override is unchanged.
 
-**Rate limiting** — `/api/infer`, `/api/vlm/*` and the WebSocket run real inference
-on every request, so an unauthenticated public endpoint is a cost and abuse vector.
-Add a per-IP limit at the Caddy layer, plus a cap on concurrent WebSocket sessions
-in the backend. Exact limits are set during implementation against measured
-single-request cost.
+**Rate limiting** — `/api/infer`, `/api/vlm/*` and `/api/detection/benchmark` run a
+model forward pass per request, so an unauthenticated public endpoint is a cost and
+abuse vector.
+
+*Revised during implementation:* the limit lives in the backend
+(`app/api/ratelimit.py`), not at the proxy. Caddy v2 has no built-in `rate_limit`
+directive — it is a third-party plugin requiring a custom `xcaddy` build, so the
+originally specified config would have failed to start. Enforcing it in the app also
+means it holds however the project is deployed, and it is unit-testable. Default
+60/min per IP, set in `docker-compose.prod.yml`; `VE_RATE_LIMIT_PER_MIN=0` disables
+it for local development. Cheap endpoints (`/health`, metadata reads) are exempt so
+uptime checks cannot trip it.
+
+*Trust model:* the limiter keys on `X-Forwarded-For`, which is safe only because
+Caddy's `trusted_proxies` is empty and it therefore discards a client-supplied
+header and writes the real peer address — verified empirically against the running
+stack. Adding another proxy in front (Cloudflare, a load balancer) without
+configuring `trusted_proxies` would put every user in one shared bucket.
 
 **`.env.example`** — a documented production block: `VE_CORS_ORIGINS`,
 `VITE_API_BASE`, and a note that `VE_ALLOW_FRAME_TRANSMISSION` must stay `false`
