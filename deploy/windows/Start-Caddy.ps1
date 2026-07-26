@@ -16,7 +16,11 @@ param(
     [string]$RepoRoot = (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)),
     [string]$SiteAddress = $(if ($env:SITE_ADDRESS) { $env:SITE_ADDRESS } else { 'visionedge.c-maron.space' }),
     [string]$PortfolioAddress = 'c-maron.space',
-    [string]$PortfolioRoot = 'C:\inetpub\wwwroot',
+    # C:\inetpub\c-maron is where c-maron's scripts\deploy.ps1 publishes. NOT
+    # C:\inetpub\wwwroot - that is the IIS default and holds a stale build of a
+    # different site. This value is exported as PORTFOLIO_ROOT and therefore
+    # overrides the Caddyfile's own default, so it has to be right here too.
+    [string]$PortfolioRoot = 'C:\inetpub\c-maron',
     [string]$CaddyExe = 'caddy.exe'
 )
 

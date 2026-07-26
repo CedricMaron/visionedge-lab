@@ -19,8 +19,9 @@
     Where to clone/find the repository. Created if missing.
 
 .PARAMETER PortfolioRoot
-    Directory the existing portfolio is served from. Auto-detected from IIS when
-    omitted, falling back to C:\inetpub\wwwroot.
+    Directory the existing portfolio is served from. Defaults to
+    C:\inetpub\c-maron (where c-maron's deploy.ps1 publishes), consulting IIS only
+    if that is absent.
 
 .PARAMETER SkipPrereqs
     Do not attempt to install Python/Node/Caddy/Git via winget; only check.
@@ -293,16 +294,26 @@ try {
     # --- 6. portfolio location ----------------------------------------------
     Write-Step 'Portfolio location'
     if (-not $PortfolioRoot) {
-        try {
-            Import-Module WebAdministration -ErrorAction Stop
-            $site = Get-Website -ErrorAction Stop | Select-Object -First 1
-            if ($site -and $site.physicalPath) {
-                $PortfolioRoot = [Environment]::ExpandEnvironmentVariables($site.physicalPath)
+        # Where c-maron's scripts\deploy.ps1 publishes. Checked FIRST and trusted
+        # over anything IIS reports: IIS's Default Web Site points at
+        # C:\inetpub\wwwroot, which holds a stale build of a different site, and
+        # believing it is what made c-maron.space serve the wrong content.
+        $published = 'C:\inetpub\c-maron'
+        if (Test-Path (Join-Path $published 'index.html')) {
+            $PortfolioRoot = $published
+        } else {
+            try {
+                Import-Module WebAdministration -ErrorAction Stop
+                $site = Get-Website -ErrorAction Stop | Select-Object -First 1
+                if ($site -and $site.physicalPath) {
+                    $PortfolioRoot = [Environment]::ExpandEnvironmentVariables($site.physicalPath)
+                    Write-Warn "using the IIS path $PortfolioRoot - confirm it is the portfolio and not a stale build"
+                }
+            } catch {
+                Write-Warn 'could not query IIS; falling back to the published path'
             }
-        } catch {
-            Write-Warn 'could not query IIS; falling back to the default path'
+            if (-not $PortfolioRoot) { $PortfolioRoot = $published }
         }
-        if (-not $PortfolioRoot) { $PortfolioRoot = 'C:\inetpub\wwwroot' }
     }
     if (-not (Test-Path $PortfolioRoot)) {
         throw "Portfolio root '$PortfolioRoot' not found. Pass -PortfolioRoot with the correct path."

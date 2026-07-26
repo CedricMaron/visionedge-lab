@@ -1,25 +1,33 @@
-# VisionEdge Lab + portfolio - native Windows deployment (no Docker).
+# Caddy config for the VPS - native Windows, no Docker.
 #
-# Caddy is the single public listener on this VPS, serving TWO sites:
-#   c-maron.space          -> the existing static portfolio (previously IIS)
-#   visionedge.c-maron.space -> this project's SPA + API
+# This one Caddy instance is the only listener on ports 80/443, so it fronts
+# every site on the box:
+#   c-maron.space (+www)      -> the static portfolio
+#   visionedge.c-maron.space  -> VisionEdge Lab (this repo): SPA + API
+#   myalphaedge.com (+www)    -> MyAlphaEdge: SPA + API
 #
-# Caddy must own ports 80 and 443, so IIS has to release them first (see
-# docs/DEPLOY_WINDOWS.md). In exchange both sites get automatic Let's Encrypt
-# certificates, which also fixes the portfolio's HTTPS.
+# Editing this file therefore affects all three. ALWAYS validate before
+# reloading - an invalid Caddyfile takes every site down, not just the one you
+# changed:
+#   $caddy = "C:\ProgramData\VisionEdge\tools\caddy.exe"
+#   & $caddy validate --config C:\visionedge-lab\deploy\Caddyfile.windows --adapter caddyfile
+#   & $caddy reload   --config C:\visionedge-lab\deploy\Caddyfile.windows --adapter caddyfile
 #
-# Forward slashes are deliberate: Caddy accepts them on Windows, and a backslash
-# is an escape character inside Caddyfile tokens.
-#
-# Run:
-#   $env:PORTFOLIO_ROOT = "C:/inetpub/wwwroot"
-#   $env:SITE_ROOT      = "C:/visionedge-lab/frontend/dist"
-#   caddy.exe run --config deploy\Caddyfile.windows
+# Two Caddyfile rules this file depends on:
+#   - Windows paths use FORWARD slashes; a backslash is an escape character
+#     inside Caddyfile tokens.
+#   - A matcher-less `header` does not reliably lose to a later matched one, so
+#     where two Cache-Control policies coexist they use mutually exclusive
+#     matchers rather than relying on override order.
 
 # --- portfolio ---------------------------------------------------------------
+# Root is C:/inetpub/c-maron, which is where c-maron's scripts\deploy.ps1
+# publishes (its $Target). It is NOT C:/inetpub/wwwroot: that is the IIS default
+# directory and still holds a stale build, which is what made this domain serve
+# the wrong site.
 {$PORTFOLIO_ADDRESS:c-maron.space}, www.{$PORTFOLIO_ADDRESS:c-maron.space} {
 	encode zstd gzip
-	root * {$PORTFOLIO_ROOT:C:/inetpub/wwwroot}
+	root * {$PORTFOLIO_ROOT:C:/inetpub/c-maron}
 	file_server
 
 	# Mirrors the headers IIS was already sending, so moving the site to Caddy
@@ -81,4 +89,50 @@
 		}
 		format console
 	}
+}
+
+# --- MyAlphaEdge -------------------------------------------------------------
+# Nothing sits in front of this any more, so Caddy does the whole job: TLS, the
+# SPA, and the API proxy. The hostname must appear in a site block or Caddy never
+# requests a certificate for it - that absence, not DNS or ACME, is why this
+# domain failed the TLS handshake.
+{$MYALPHAEDGE_ADDRESS:myalphaedge.com} {
+	encode zstd gzip
+
+	# `handle`, not `handle_path`: the backend's routes all live under /api, so
+	# the prefix must survive proxying.
+	handle /api/* {
+		reverse_proxy 127.0.0.1:5000
+	}
+
+	handle {
+		root * {$MYALPHAEDGE_ROOT:C:/MyAlphaEdge/frontend/dist}
+		try_files {path} /index.html
+		file_server
+	}
+
+	# Matched on "not /assets/*" rather than "*.html" on purpose. SPA routes like
+	# /dashboard are served index.html under a path with no .html suffix, so an
+	# *.html matcher would leave them with no directive and browsers would cache
+	# them heuristically - serving a stale index.html that references chunk hashes
+	# which no longer exist after a deploy. The two matchers are mutually
+	# exclusive so neither depends on overriding the other.
+	@assets path /assets/*
+	@document not path /assets/*
+	header @document Cache-Control "no-cache"
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+
+	log {
+		output file {$MYALPHAEDGE_LOG:C:/visionedge-lab/logs/myalphaedge.log} {
+			roll_size 10MiB
+			roll_keep 5
+		}
+		format console
+	}
+}
+
+# All SEO canonicals and sitemap.xml use the bare apex, so www must not serve a
+# duplicate copy of the site.
+www.{$MYALPHAEDGE_ADDRESS:myalphaedge.com} {
+	redir https://{$MYALPHAEDGE_ADDRESS:myalphaedge.com}{uri} permanent
 }
