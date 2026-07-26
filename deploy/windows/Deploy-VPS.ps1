@@ -43,7 +43,8 @@ param(
     [string]$PortfolioRoot    = '',
     [int]$RateLimitPerMin     = 60,
     [switch]$SkipPrereqs,
-    [switch]$Force
+    [switch]$Force,
+    [switch]$NoSelfUpdate
 )
 
 $ErrorActionPreference = 'Stop'
@@ -164,6 +165,32 @@ try {
     Write-Host ' VisionEdge Lab - Windows VPS deployment'               -ForegroundColor Cyan
     Write-Host '=======================================================' -ForegroundColor Cyan
 
+    # --- 0. self-update ------------------------------------------------------
+    # This has to happen BEFORE preflight. The repository update used to live in
+    # step 2, so running an outdated copy failed in preflight and never reached
+    # the pull that would have fixed it.
+    if (-not $NoSelfUpdate) {
+        $selfRepo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+        if (Test-Path (Join-Path $selfRepo '.git')) {
+            Write-Step 'Checking for a newer version of this script'
+            $before = (Get-FileHash $PSCommandPath -Algorithm SHA256).Hash
+            try {
+                git -C $selfRepo pull --ff-only 2>&1 | Out-Null
+            } catch {
+                Write-Warn "could not pull: $($_.Exception.Message). Continuing with the local copy."
+            }
+            $after = (Get-FileHash $PSCommandPath -Algorithm SHA256).Hash
+            if ($before -ne $after) {
+                Write-Host ''
+                Write-Host '    This script was updated by the pull. PowerShell is still running the' -ForegroundColor Yellow
+                Write-Host '    old copy, so nothing further was changed. Re-run the same command to' -ForegroundColor Yellow
+                Write-Host '    continue with the new version.' -ForegroundColor Yellow
+                exit 0
+            }
+            Write-Ok 'up to date'
+        }
+    }
+
     # --- 1. preflight --------------------------------------------------------
     Write-Step 'Preflight checks'
     if (-not (Test-Admin)) {
@@ -202,10 +229,9 @@ try {
     # --- 2. repository -------------------------------------------------------
     Write-Step "Repository at $RepoRoot"
     if (Test-Path (Join-Path $RepoRoot '.git')) {
-        Push-Location $RepoRoot
-        git pull --ff-only 2>&1 | Out-Null
-        Pop-Location
-        Write-Ok 'existing clone updated'
+        # Already pulled in step 0 when this script is running from that clone.
+        git -C $RepoRoot pull --ff-only 2>&1 | Out-Null
+        Write-Ok 'existing clone up to date'
     } else {
         git clone $RepoUrl $RepoRoot 2>&1 | Out-Null
         Write-Ok 'cloned'
