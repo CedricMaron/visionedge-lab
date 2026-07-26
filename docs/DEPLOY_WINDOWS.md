@@ -6,10 +6,37 @@ is disabled. This is the native alternative: the same single-origin design, with
 Caddy and the backend running as ordinary Windows processes.
 
 > **Verification status.** The Caddyfile is validated (`caddy validate` against
-> Caddy 2.8), and the backend is the same code covered by 108 passing tests. The
-> PowerShell scripts have **not** been executed — they were written on Linux and
-> cannot be run there. Treat the first deployment as a test, and check the
-> "Verify it worked" section rather than assuming.
+> Caddy 2.8), and the backend is the same code covered by 108 passing tests.
+> `Start-Backend.ps1`, `Start-Caddy.ps1` and `Install-Services.ps1` were checked
+> with the PowerShell 5.1 parser; `Deploy-VPS.ps1` was written after that route
+> stopped working and has only had a structural check (balanced blocks, ASCII-only).
+> **No script has been executed** — they were written on Linux and cannot run
+> there. Treat the first deployment as a test and use the "Verify it worked"
+> section rather than assuming.
+
+## Quick start: one script
+
+`Deploy-VPS.ps1` runs the whole sequence below — prerequisites, clone, venv, model
+download, frontend build, IIS handover, scheduled tasks, firewall, and a
+verification pass. From an **elevated** PowerShell prompt:
+
+```powershell
+# Add the DNS record first (see the DNS section), then:
+git clone https://github.com/CedricMaron/visionedge-lab.git C:\visionedge-lab
+cd C:\visionedge-lab
+.\deploy\windows\Deploy-VPS.ps1
+```
+
+It is safe to re-run: each step checks whether it is already done, so fixing one
+problem and running again does not redo the rest. It prompts once before stopping
+IIS (pass `-Force` to skip), and if any later step fails it restarts IIS
+automatically so the portfolio comes back.
+
+Useful switches: `-SiteAddress`, `-PortfolioRoot`, `-RateLimitPerMin`,
+`-SkipPrereqs` (check tools but never install them), `-Force`.
+
+The rest of this document is the manual equivalent, and the reference for
+diagnosing anything the script reports.
 
 ## Architecture
 
