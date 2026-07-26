@@ -1,4 +1,4 @@
-"""VisionEdge Lab FastAPI application.
+"""InferenceLab FastAPI application.
 
 Wires the detection foundation (and, when present, the VLM slice) behind versioned
 routers. Domain errors are mapped to friendly messages; raw stack traces never reach
@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.ratelimit import install_rate_limit
 from app.core.config import get_settings
-from app.core.errors import VisionEdgeError
+from app.core.errors import InferenceLabError
 from app.core.logging import configure_logging, get_logger
 from app.core.state import build_state
 
@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="VisionEdge Lab", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="InferenceLab", version="0.2.0", lifespan=lifespan)
 
     origins = ["*"] if settings.cors_origins.strip() == "*" else [
         o.strip() for o in settings.cors_origins.split(",") if o.strip()
@@ -53,8 +53,8 @@ def create_app() -> FastAPI:
 
     install_rate_limit(app, settings.rate_limit_per_min)
 
-    @app.exception_handler(VisionEdgeError)
-    async def _domain_error(request: Request, exc: VisionEdgeError):
+    @app.exception_handler(InferenceLabError)
+    async def _domain_error(request: Request, exc: InferenceLabError):
         log.warning("domain_error", path=str(request.url.path), detail=exc.detail)
         return JSONResponse(status_code=400, content={"error": exc.user_message})
 

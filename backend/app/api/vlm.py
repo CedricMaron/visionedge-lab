@@ -10,7 +10,7 @@ from fastapi import APIRouter, File, Form, Request, UploadFile
 from starlette.concurrency import run_in_threadpool
 
 from app.api.imaging import decode_image_bytes
-from app.core.errors import VisionEdgeError
+from app.core.errors import InferenceLabError
 from app.core.state import get_state
 from app.vlm.prompting import detections_to_grounding
 
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api/vlm", tags=["vlm"])
 
 def _require_vlm(state):
     if state.vlm is None:
-        raise VisionEdgeError("vlm not available", user_message="The VLM slice is not enabled in this build.")
+        raise InferenceLabError("vlm not available", user_message="The VLM slice is not enabled in this build.")
     return state.vlm
 
 

@@ -32,13 +32,13 @@ if (-not (Test-Path $model)) {
 
 # Same-origin deployment: the browser never issues a cross-origin request. Set the
 # origin anyway as defence in depth in case the port is ever exposed directly.
-$env:VE_HOST                 = '127.0.0.1'
-$env:VE_PORT                 = '8000'
-$env:VE_LOG_JSON             = 'true'
-$env:VE_CORS_ORIGINS         = "https://$SiteAddress"
-$env:VE_RATE_LIMIT_PER_MIN   = "$RateLimitPerMin"
+$env:IL_HOST                 = '127.0.0.1'
+$env:IL_PORT                 = '8000'
+$env:IL_LOG_JSON             = 'true'
+$env:IL_CORS_ORIGINS         = "https://$SiteAddress"
+$env:IL_RATE_LIMIT_PER_MIN   = "$RateLimitPerMin"
 # Frames are never sent to a remote VLM unless this is deliberately enabled.
-$env:VE_ALLOW_FRAME_TRANSMISSION = 'false'
+$env:IL_ALLOW_FRAME_TRANSMISSION = 'false'
 $env:PYTHONPATH              = Join-Path $RepoRoot 'backend'
 
 Set-Location (Join-Path $RepoRoot 'backend')

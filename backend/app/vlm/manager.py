@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import threading
 
-from app.core.errors import ModelNotFoundError, VisionEdgeError
+from app.core.errors import InferenceLabError, ModelNotFoundError
 from app.core.logging import get_logger
 from app.core.types import HealthState, VLMResponse
 from app.vlm.base import VisionLanguageBackend
@@ -86,7 +86,7 @@ class VLMManager:
             except Exception as exc:  # noqa: BLE001
                 self._log_event("switch_failed_rollback", requested=model_id,
                                 restored=prev_id, error=str(exc))
-                msg = exc.user_message if isinstance(exc, VisionEdgeError) else str(exc)
+                msg = exc.user_message if isinstance(exc, InferenceLabError) else str(exc)
                 return {"ok": False, "model_id": prev_id, "rolled_back": True, "message": msg}
             if prev is not None:
                 try:

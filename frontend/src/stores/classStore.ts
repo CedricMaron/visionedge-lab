@@ -83,7 +83,7 @@ export const useClassStore = create<ClassState>()(
         }),
     }),
     {
-      name: 'visionedge.classes',
+      name: 'inferencelab.classes',
       partialize: (state) => ({ selectedIds: state.selectedIds }),
     },
   ),

@@ -1,4 +1,4 @@
-# VisionEdge Lab — developer commands.
+# InferenceLab — developer commands.
 .DEFAULT_GOAL := help
 PY := backend/.venv/bin/python
 PIP := backend/.venv/bin/pip

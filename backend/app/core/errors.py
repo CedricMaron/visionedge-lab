@@ -6,7 +6,7 @@ returned to regular users (see api error handlers).
 from __future__ import annotations
 
 
-class VisionEdgeError(Exception):
+class InferenceLabError(Exception):
     """Base class for all domain errors."""
 
     user_message = "An internal error occurred."
@@ -18,25 +18,30 @@ class VisionEdgeError(Exception):
             self.user_message = user_message
 
 
-class ConfigInvalidError(VisionEdgeError):
+class ConfigInvalidError(InferenceLabError):
     user_message = "The requested configuration is invalid."
 
 
-class ModelNotFoundError(VisionEdgeError):
+class ModelNotFoundError(InferenceLabError):
     user_message = "The requested model is not available."
 
 
-class ModelLoadError(VisionEdgeError):
+class ModelLoadError(InferenceLabError):
     user_message = "The model failed to load. Restored the previous configuration."
 
 
-class RuntimeUnavailableError(VisionEdgeError):
+class RuntimeUnavailableError(InferenceLabError):
     user_message = "The requested runtime is not available on this device."
 
 
-class InferenceError(VisionEdgeError):
+class InferenceError(InferenceLabError):
     user_message = "Inference failed for this frame."
 
 
-class BackendClosedError(VisionEdgeError):
+class BackendClosedError(InferenceLabError):
     user_message = "The inference backend is not loaded."
+
+
+# Deprecated alias kept for one release so any out-of-tree importer (scripts,
+# notebooks) keeps working across the InferenceLab rename.
+VisionEdgeError = InferenceLabError

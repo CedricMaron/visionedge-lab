@@ -2,7 +2,7 @@
 // (VITE_API_BASE) but can be overridden at runtime via Settings (localStorage).
 // The WebSocket URL is always DERIVED from the API base — never hardcoded.
 
-const LS_KEY = 'visionedge.apiBase';
+const LS_KEY = 'inferencelab.apiBase';
 
 // When VITE_API_BASE is not baked in at build time, talk to the origin the app was
 // served from. That makes one build artifact work for a same-origin deployment

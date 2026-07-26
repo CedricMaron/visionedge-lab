@@ -38,7 +38,7 @@ export const useSettingsStore = create<SettingsState>()(
       setStructuredOutput: (v) => set({ structuredOutput: v }),
     }),
     {
-      name: 'visionedge.settings',
+      name: 'inferencelab.settings',
       onRehydrateStorage: () => (state) => {
         if (state?.apiBase) setApiBase(state.apiBase);
       },

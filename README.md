@@ -1,8 +1,17 @@
-# VisionEdge Lab
+# InferenceLab
 
-**A hardware-aware multimodal vision platform for comparing detection, vision-language understanding and predictive representation learning across edge, browser and server environments.**
+**Multimodal AI inference, profiling and benchmarking.**
 
-VisionEdge Lab demonstrates three complementary levels of visual intelligence and — just as importantly — the *deployment engineering* around them: model conversion, quantization, runtime selection, capability detection, benchmarking, graceful fallback, and local-vs-server trade-offs.
+InferenceLab is a hardware-aware multimodal benchmarking platform that decomposes AI
+inference from input decoding to device execution and network transport. It compares
+vision, language, speech, image and video models across local, browser, edge and remote
+runtimes using reproducible latency, throughput, memory, utilization, energy and quality
+measurements.
+
+> Formerly *VisionEdge Lab*. See [`docs/MIGRATION.md`](docs/MIGRATION.md) for what changed
+> and how existing deployments carry forward.
+
+InferenceLab demonstrates three complementary levels of visual intelligence and — just as importantly — the *deployment engineering* around them: model conversion, quantization, runtime selection, capability detection, benchmarking, graceful fallback, and local-vs-server trade-offs.
 
 1. **Object detection** — *what* objects are present and *where* (YOLOv8, ONNX Runtime, from-scratch NumPy decoding).
 2. **Vision-language understanding** — *what is happening*; scene description and visual question answering (pluggable VLM backends).
@@ -238,11 +247,11 @@ containers, and nested virtualization is disabled on many Windows VPS plans. See
 [`docs/DEPLOY_WINDOWS.md`](docs/DEPLOY_WINDOWS.md) for the native path: same
 single-origin design with Caddy and the backend as ordinary Windows processes.
 
-Set `VE_RATE_LIMIT_PER_MIN` for anything internet-facing — every `/api/infer` and
+Set `IL_RATE_LIMIT_PER_MIN` for anything internet-facing — every `/api/infer` and
 `/api/vlm/*` request is a real model forward pass, so an unlimited public endpoint
 is a cost and abuse vector. The limit is enforced in the backend
 (`app/api/ratelimit.py`) rather than at the proxy, so it holds however you deploy.
-The SQLite database must stay on a mounted volume (`VE_DB_PATH`), or benchmark
+The SQLite database must stay on a mounted volume (`IL_DB_PATH`), or benchmark
 history and sessions are discarded on every restart.
 
 ### The hosted demo runs on different hardware
@@ -260,7 +269,7 @@ corresponding source available — which this public repository does.
 
 ## Privacy & security
 
-- Camera frames are **not stored by default**. Remote frame transmission is off unless you set `VE_ALLOW_FRAME_TRANSMISSION=true`.
+- Camera frames are **not stored by default**. Remote frame transmission is off unless you set `IL_ALLOW_FRAME_TRANSMISSION=true`.
 - Remote endpoints use env-based API keys and TLS. No public server is exposed by default.
 - CORS is `*` for local dev only — set explicit origins for any deployment.
 

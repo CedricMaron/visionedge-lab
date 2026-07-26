@@ -1,19 +1,19 @@
-# VisionEdge Lab — local orchestration.
+# InferenceLab — local orchestration.
 # CPU-first by default. GPU is opt-in (uncomment the deploy block + use the cuda Dockerfile).
 services:
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    image: visionedge-backend:cpu
+    image: inferencelab-backend:cpu
     ports:
       - "8000:8000"
     environment:
-      - VE_HOST=0.0.0.0
-      - VE_PORT=8000
-      - VE_LOG_JSON=true
-      - VE_DEFAULT_MODEL_ID=yolov8n-onnx
-      - VE_DEFAULT_VLM_ID=mock-vlm
+      - IL_HOST=0.0.0.0
+      - IL_PORT=8000
+      - IL_LOG_JSON=true
+      - IL_DEFAULT_MODEL_ID=yolov8n-onnx
+      - IL_DEFAULT_VLM_ID=mock-vlm
     volumes:
       - ./models:/app/models:ro
       - ./benchmark-data:/app/benchmark-data
@@ -30,7 +30,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    image: visionedge-frontend:latest
+    image: inferencelab-frontend:latest
     ports:
       - "5173:80"
     environment:

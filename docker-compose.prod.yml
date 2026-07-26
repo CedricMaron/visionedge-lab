@@ -30,26 +30,26 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    image: visionedge-backend:cpu
+    image: inferencelab-backend:cpu
     restart: unless-stopped
     expose:
       - "8000"
     environment:
-      - VE_HOST=0.0.0.0
-      - VE_PORT=8000
-      - VE_LOG_JSON=true
-      - VE_DEFAULT_MODEL_ID=yolov8n-onnx
-      - VE_DEFAULT_VLM_ID=mock-vlm
+      - IL_HOST=0.0.0.0
+      - IL_PORT=8000
+      - IL_LOG_JSON=true
+      - IL_DEFAULT_MODEL_ID=yolov8n-onnx
+      - IL_DEFAULT_VLM_ID=mock-vlm
       # Same-origin, so the browser never sends a cross-origin request. Set
       # explicitly anyway as defence in depth, in case the backend is ever
       # exposed directly.
-      - VE_CORS_ORIGINS=https://${SITE_ADDRESS:-visionedge.c-maron.space}
+      - IL_CORS_ORIGINS=https://${SITE_ADDRESS:-visionedge.c-maron.space}
       # Per-IP cap on endpoints that run a model forward pass. On by default here:
       # an internet-facing deployment with this unset (0) would be unprotected.
-      - VE_RATE_LIMIT_PER_MIN=${VE_RATE_LIMIT_PER_MIN:-60}
+      - IL_RATE_LIMIT_PER_MIN=${IL_RATE_LIMIT_PER_MIN:-60}
       # Frames are never sent to a remote VLM unless this is deliberately enabled.
-      - VE_ALLOW_FRAME_TRANSMISSION=false
-      - VE_DB_PATH=/data/visionedge.db
+      - IL_ALLOW_FRAME_TRANSMISSION=false
+      - IL_DB_PATH=/data/inferencelab.db
     volumes:
       - ./models:/app/models:ro
       - ./benchmark-data:/app/benchmark-data
@@ -63,7 +63,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE: ""      # empty => resolve to window.location.origin
-    image: visionedge-frontend:latest
+    image: inferencelab-frontend:latest
     restart: "no"
     command: sh -c "rm -rf /srv/* && cp -r /usr/share/nginx/html/. /srv/"
     volumes:

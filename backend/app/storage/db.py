@@ -13,6 +13,8 @@ import statistics
 import time
 from pathlib import Path
 
+from app.storage.migrations import current_version, migrate
+
 # Reads back the concurrency count that app/benchmarking/auto.py writes into notes.
 _CONCURRENT_RE = re.compile(r"(\d+) concurrent live frames")
 
@@ -25,37 +27,28 @@ def _measured_under_load(notes: str | None) -> bool:
     return bool(m) and int(m.group(1)) > 0
 
 
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS benchmarks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    ts REAL NOT NULL,
-    backend TEXT, model_id TEXT, input_size INTEGER, precision TEXT, device TEXT,
-    provider TEXT, runs INTEGER, fps REAL,
-    latency_mean_ms REAL, latency_p50_ms REAL, latency_p95_ms REAL, latency_p99_ms REAL,
-    memory_rss_mb REAL, hardware TEXT, os TEXT, runtime_versions TEXT, model_checksum TEXT,
-    config TEXT, notes TEXT
-);
-CREATE TABLE IF NOT EXISTS sessions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT UNIQUE, ts REAL NOT NULL, client_device TEXT,
-    execution_location TEXT, model_id TEXT, runtime TEXT, last_seen REAL
-);
-"""
-
-
 class Database:
+    """SQLite store. Schema is owned by :mod:`app.storage.migrations`."""
+
     def __init__(self, path: str | Path) -> None:
         self.path = str(path)
+        self.applied_migrations: list[int] = []
         self._init()
 
     def _conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, timeout=5.0)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
         return conn
 
     def _init(self) -> None:
         with self._conn() as c:
-            c.executescript(_SCHEMA)
+            self.applied_migrations = migrate(c)
+
+    @property
+    def schema_version(self) -> int:
+        with self._conn() as c:
+            return current_version(c)
 
     def insert_benchmark(self, result: dict, meta: dict | None = None) -> int:
         meta = meta or {}

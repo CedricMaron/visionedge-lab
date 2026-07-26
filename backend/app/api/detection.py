@@ -16,7 +16,7 @@ from starlette.concurrency import run_in_threadpool
 from app.api.imaging import decode_image_bytes
 from app.benchmarking.auto import BENCHMARK_JOB_KIND
 from app.benchmarking.auto import DEFAULT_RUNS as AUTO_BENCHMARK_RUNS
-from app.core.errors import VisionEdgeError
+from app.core.errors import InferenceLabError
 from app.core.logging import get_logger
 from app.core.state import get_state
 from app.core.types import ExecutionLocation
@@ -190,7 +190,7 @@ async def ws_detect(ws: WebSocket):
                     "dropped": dropped,
                     "backend": backend,
                 })
-            except VisionEdgeError as exc:
+            except InferenceLabError as exc:
                 await ws.send_json({"frame_id": fid, "error": exc.user_message})
             except Exception as exc:  # noqa: BLE001
                 log.warning("ws_worker_error", error=str(exc))

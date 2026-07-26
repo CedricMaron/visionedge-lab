@@ -1,3 +1,7 @@
+// MUST be the first import: migrates legacy localStorage keys before any store
+// module is evaluated. See the module docstring for why ordering matters here.
+import '@/bootstrap/migrateStorage';
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';

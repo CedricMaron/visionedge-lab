@@ -19,7 +19,7 @@ RUN pip install --no-cache-dir -r requirements/base.txt
 COPY . .
 
 EXPOSE 8000
-ENV PYTHONPATH=/app/backend VE_HOST=0.0.0.0 VE_PORT=8000
+ENV PYTHONPATH=/app/backend IL_HOST=0.0.0.0 IL_PORT=8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD curl -fsS http://localhost:8000/health || exit 1

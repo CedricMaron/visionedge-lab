@@ -1,8 +1,8 @@
-// VisionEdge Lab — minimal, honest app-shell service worker.
+// InferenceLab — minimal, honest app-shell service worker.
 // This is intentionally simple: it caches the app shell for offline load of
 // static assets only. It NEVER caches API or WebSocket responses — live
 // inference data must always come from the network.
-const CACHE = 'visionedge-shell-v1';
+const CACHE = 'inferencelab-shell-v2';
 const SHELL = ['/', '/index.html', '/manifest.json', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {

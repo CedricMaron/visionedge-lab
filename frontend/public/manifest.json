@@ -1,7 +1,7 @@
 {
-  "name": "VisionEdge Lab",
-  "short_name": "VisionEdge",
-  "description": "Multimodal computer-vision platform control surface",
+  "name": "InferenceLab",
+  "short_name": "InferenceLab",
+  "description": "Multimodal AI inference, profiling and benchmarking.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#080b12",

@@ -7,17 +7,26 @@ these through ``get_state()`` which reads from ``app.state``.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from app.benchmarking.auto import make_job_factory
 from app.capabilities.scanner import BackendCapabilities, scan_capabilities
-from app.core.config import Settings, get_settings
+from app.core.config import (
+    ENV_PREFIX,
+    LEGACY_DB_FILENAME,
+    LEGACY_ENV_PREFIX,
+    Settings,
+    adopt_legacy_env,
+    get_settings,
+)
 from app.inference.config import InferenceConfig
 from app.inference.manager import DetectionManager
 from app.jobs.manager import JobManager
 from app.models.registry import ModelRegistry, load_registry, refresh_deployment_status
 from app.monitoring.metrics import RollingMetrics
 from app.storage.db import Database
+from app.storage.migrations import adopt_legacy_database
 
 if TYPE_CHECKING:
     from app.vlm.manager import VLMManager
@@ -40,10 +49,23 @@ def build_state() -> AppState:
     settings = get_settings()
     caps = scan_capabilities()
     registry = refresh_deployment_status(load_registry(settings.registry_path))
+    warnings: list[str] = []
+
+    # Carry a VisionEdge-era database and environment forward across the rename
+    # rather than silently starting from an empty history.
+    carried_env = adopt_legacy_env()
+    if carried_env:
+        warnings.append(
+            f"deprecated {LEGACY_ENV_PREFIX} environment variables are still in use and were "
+            f"mapped to {ENV_PREFIX}: {', '.join(carried_env)}. Rename them before the next release."
+        )
+    legacy_db = Path(settings.db_path).with_name(LEGACY_DB_FILENAME)
+    if adopt_legacy_database(Path(settings.db_path), legacy_db):
+        warnings.append(f"adopted legacy database {legacy_db.name} as {Path(settings.db_path).name}")
+
     db = Database(settings.db_path)
     detection = DetectionManager(registry, caps)
     metrics = RollingMetrics()
-    warnings: list[str] = []
 
     # Try to initialize the default detection backend so /health is meaningful.
     default = registry.detection(settings.default_model_id)

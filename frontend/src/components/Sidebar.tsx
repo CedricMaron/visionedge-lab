@@ -10,7 +10,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <Icon name="live" className="h-5 w-5" />
         </div>
         <div className="leading-tight">
-          <div className="text-sm font-semibold text-slate-100">VisionEdge Lab</div>
+          <div className="text-sm font-semibold text-slate-100">InferenceLab</div>
           <div className="text-[11px] text-slate-500">multimodal vision platform</div>
         </div>
       </div>

@@ -77,7 +77,7 @@ describe('classStore', () => {
     const s = useClassStore.getState();
     s.setCatalog(CLASSES, GROUPS);
     s.selectGroup('people'); // [0]
-    const raw = localStorage.getItem('visionedge.classes');
+    const raw = localStorage.getItem('inferencelab.classes');
     expect(raw).toBeTruthy();
     const parsed = JSON.parse(raw as string);
     expect(parsed.state.selectedIds).toEqual([0]);
