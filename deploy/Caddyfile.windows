@@ -1,22 +1,50 @@
-# VisionEdge Lab — native Windows deployment (no Docker).
+# VisionEdge Lab + portfolio - native Windows deployment (no Docker).
 #
-# Same single-origin design as deploy/Caddyfile: Caddy serves the built SPA and
-# proxies the API, so there is no CORS and wss:// is derived from https://.
-# The difference is that the backend runs as a local process rather than a
-# container, so it is reached on 127.0.0.1 instead of a compose service name.
+# Caddy is the single public listener on this VPS, serving TWO sites:
+#   c-maron.space          -> the existing static portfolio (previously IIS)
+#   visionedge.c-maron.space -> this project's SPA + API
 #
-# Forward slashes are used deliberately: Caddy accepts them on Windows, and a
-# backslash is an escape character inside Caddyfile tokens.
+# Caddy must own ports 80 and 443, so IIS has to release them first (see
+# docs/DEPLOY_WINDOWS.md). In exchange both sites get automatic Let's Encrypt
+# certificates, which also fixes the portfolio's HTTPS.
+#
+# Forward slashes are deliberate: Caddy accepts them on Windows, and a backslash
+# is an escape character inside Caddyfile tokens.
 #
 # Run:
-#   $env:SITE_ADDRESS = "visionedge.c-maron.space"
-#   $env:SITE_ROOT    = "C:/visionedge-lab/frontend/dist"
+#   $env:PORTFOLIO_ROOT = "C:/inetpub/wwwroot"
+#   $env:SITE_ROOT      = "C:/visionedge-lab/frontend/dist"
 #   caddy.exe run --config deploy\Caddyfile.windows
 
+# --- portfolio ---------------------------------------------------------------
+{$PORTFOLIO_ADDRESS:c-maron.space}, www.{$PORTFOLIO_ADDRESS:c-maron.space} {
+	encode zstd gzip
+	root * {$PORTFOLIO_ROOT:C:/inetpub/wwwroot}
+	file_server
+
+	# Mirrors the headers IIS was already sending, so moving the site to Caddy
+	# does not quietly relax its security posture.
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "SAMEORIGIN"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+	}
+
+	log {
+		output file {$PORTFOLIO_LOG:C:/visionedge-lab/logs/portfolio.log} {
+			roll_size 10MiB
+			roll_keep 5
+		}
+		format console
+	}
+}
+
+# --- VisionEdge Lab ----------------------------------------------------------
 {$SITE_ADDRESS:visionedge.c-maron.space} {
 	encode zstd gzip
 
-	# Rate limiting lives in the backend (app/api/ratelimit.py) — Caddy v2 has no
+	# Rate limiting lives in the backend (app/api/ratelimit.py) - Caddy v2 has no
 	# built-in rate_limit directive. The backend keys on X-Forwarded-For, which is
 	# trustworthy only because trusted_proxies is empty here and Caddy overwrites
 	# any client-supplied value with the real peer address.
@@ -35,6 +63,15 @@
 		root * {$SITE_ROOT:C:/visionedge-lab/frontend/dist}
 		try_files {path} /index.html
 		file_server
+	}
+
+	# NOTE: camera=(self), unlike the portfolio's camera=(). Live Inference calls
+	# getUserMedia, and a restrictive Permissions-Policy here would silently break
+	# it with no error the user could act on.
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(self), microphone=(), geolocation=()"
 	}
 
 	log {

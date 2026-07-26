@@ -15,6 +15,8 @@
 param(
     [string]$RepoRoot = (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)),
     [string]$SiteAddress = $(if ($env:SITE_ADDRESS) { $env:SITE_ADDRESS } else { 'visionedge.c-maron.space' }),
+    [string]$PortfolioAddress = 'c-maron.space',
+    [string]$PortfolioRoot = 'C:\inetpub\wwwroot',
     [string]$CaddyExe = 'caddy.exe'
 )
 
@@ -34,12 +36,34 @@ if (-not (Test-Path $config)) {
     throw "Caddyfile not found at $config"
 }
 
+if (-not (Test-Path $PortfolioRoot)) {
+    throw "Portfolio root not found at $PortfolioRoot. Confirm it in IIS Manager (Default Web Site > Basic Settings > Physical path) and pass -PortfolioRoot."
+}
+
+# Caddy needs 80 and 443. If IIS still holds them, ACME fails and the portfolio
+# would go down without this site coming up - check before starting, not after.
+foreach ($port in 80, 443) {
+    $holder = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue |
+              Select-Object -First 1
+    if ($holder) {
+        $proc = Get-Process -Id $holder.OwningProcess -ErrorAction SilentlyContinue
+        $name = if ($proc) { $proc.ProcessName } else { "PID $($holder.OwningProcess)" }
+        if ($name -notmatch 'caddy') {
+            throw "Port $port is already held by '$name'. Release it first (see docs/DEPLOY_WINDOWS.md): Stop-Service W3SVC"
+        }
+    }
+}
+
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
 # Caddy accepts forward slashes on Windows; backslashes are escapes in Caddyfile tokens.
-$env:SITE_ADDRESS = $SiteAddress
-$env:SITE_ROOT    = $dist.Replace('\', '/')
-$env:SITE_LOG     = (Join-Path $logDir 'caddy.log').Replace('\', '/')
+$env:SITE_ADDRESS      = $SiteAddress
+$env:SITE_ROOT         = $dist.Replace('\', '/')
+$env:SITE_LOG          = (Join-Path $logDir 'caddy.log').Replace('\', '/')
+$env:PORTFOLIO_ADDRESS = $PortfolioAddress
+$env:PORTFOLIO_ROOT    = $PortfolioRoot.Replace('\', '/')
+$env:PORTFOLIO_LOG     = (Join-Path $logDir 'portfolio.log').Replace('\', '/')
 
 Write-Host "Serving $SiteAddress from $env:SITE_ROOT"
+Write-Host "Serving $PortfolioAddress (+www) from $env:PORTFOLIO_ROOT"
 & $CaddyExe run --config $config
