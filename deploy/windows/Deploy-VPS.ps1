@@ -48,6 +48,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $script:IisWasRunning = $false
+$script:CaddyExe = 'caddy'
+
+# PowerShell 5.1 on Windows Server still defaults to TLS 1.0/1.1, which modern
+# download endpoints refuse. Without this, every Invoke-WebRequest below fails
+# with an unhelpful "connection closed" error.
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 function Write-Step { param([string]$Message) Write-Host "`n==> $Message" -ForegroundColor Cyan }
 function Write-Ok   { param([string]$Message) Write-Host "    [ok] $Message" -ForegroundColor Green }
@@ -79,15 +85,54 @@ function Test-RealCommand {
         Alias at python.exe that only opens the Microsoft Store. It resolves, then
         every later call fails confusingly. Require the command to actually run.
     #>
-    param([string]$Command, [string]$VersionArg = '--version')
+    param([string]$Command, [string[]]$VersionArgs = @('--version'))
 
     if (-not (Get-Command $Command -ErrorAction SilentlyContinue)) { return $false }
     try {
-        $out = & $Command $VersionArg 2>&1 | Out-String
+        $out = & $Command @VersionArgs 2>&1 | Out-String
         return -not [string]::IsNullOrWhiteSpace($out)
     } catch {
         return $false
     }
+}
+
+function Install-Caddy {
+    <#
+        winget is absent on most Windows Server installs, so fall back to Caddy's
+        official download endpoint, which serves a bare .exe (no archive). The
+        GitHub release zip is the second choice if that endpoint is unreachable.
+        Installed outside the repository so a later git clone cannot collide with it.
+    #>
+    $toolDir = Join-Path $env:ProgramData 'VisionEdge\tools'
+    $exe     = Join-Path $toolDir 'caddy.exe'
+
+    if (Test-RealCommand -Command $exe -VersionArgs @('version')) {
+        Write-Ok "Caddy already installed at $exe"
+        return $exe
+    }
+
+    New-Item -ItemType Directory -Force -Path $toolDir | Out-Null
+    $direct = 'https://caddyserver.com/api/download?os=windows&arch=amd64'
+    Write-Host "    downloading Caddy from caddyserver.com..."
+    try {
+        Invoke-WebRequest -Uri $direct -OutFile $exe -UseBasicParsing -TimeoutSec 300
+    } catch {
+        Write-Warn "direct download failed ($($_.Exception.Message)); trying the GitHub release"
+        $zip = Join-Path $toolDir 'caddy.zip'
+        $rel = Invoke-RestMethod -Uri 'https://api.github.com/repos/caddyserver/caddy/releases/latest' `
+                                 -UseBasicParsing -TimeoutSec 120
+        $asset = $rel.assets | Where-Object { $_.name -like '*windows_amd64.zip' } | Select-Object -First 1
+        if (-not $asset) { throw 'No windows_amd64 asset in the latest Caddy release.' }
+        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $zip -UseBasicParsing -TimeoutSec 300
+        Expand-Archive -Path $zip -DestinationPath $toolDir -Force
+        Remove-Item $zip -Force
+    }
+
+    if (-not (Test-RealCommand -Command $exe -VersionArgs @('version'))) {
+        throw "Caddy downloaded to $exe but will not run. Install it manually from https://caddyserver.com/download."
+    }
+    Write-Ok "Caddy installed at $exe"
+    return $exe
 }
 
 function Install-Prereq {
@@ -127,11 +172,21 @@ try {
     Write-Ok 'running as Administrator'
 
     $ok = $true
-    $ok = (Install-Prereq -Command 'git'      -WingetId 'Git.Git'                  -Url 'https://git-scm.com/download/win'      -Label 'Git') -and $ok
-    $ok = (Install-Prereq -Command 'python'   -WingetId 'Python.Python.3.12'       -Url 'https://www.python.org/downloads/'     -Label 'Python 3.12') -and $ok
-    $ok = (Install-Prereq -Command 'node'     -WingetId 'OpenJS.NodeJS.LTS'        -Url 'https://nodejs.org/'                   -Label 'Node.js') -and $ok
-    $ok = (Install-Prereq -Command 'caddy'    -WingetId 'CaddyServer.Caddy'        -Url 'https://caddyserver.com/download'      -Label 'Caddy') -and $ok
+    $ok = (Install-Prereq -Command 'git'    -WingetId 'Git.Git'            -Url 'https://git-scm.com/download/win'  -Label 'Git') -and $ok
+    $ok = (Install-Prereq -Command 'python' -WingetId 'Python.Python.3.12' -Url 'https://www.python.org/downloads/' -Label 'Python 3.12') -and $ok
+    $ok = (Install-Prereq -Command 'node'   -WingetId 'OpenJS.NodeJS.LTS'  -Url 'https://nodejs.org/'               -Label 'Node.js') -and $ok
     if (-not $ok) { throw 'Missing prerequisites (see above). Install them and re-run.' }
+
+    # Caddy is handled separately: it has an official direct download, so it needs
+    # neither winget nor a manual step even on a bare Windows Server.
+    if (Test-RealCommand -Command 'caddy' -VersionArgs @('version')) {
+        $script:CaddyExe = 'caddy'
+        Write-Ok 'Caddy present'
+    } elseif ($SkipPrereqs) {
+        throw 'Caddy missing and -SkipPrereqs was given. Install from https://caddyserver.com/download.'
+    } else {
+        $script:CaddyExe = Install-Caddy
+    }
 
     # DNS must resolve before Caddy asks Let's Encrypt for a certificate.
     foreach ($name in @($SiteAddress, $PortfolioAddress)) {
@@ -162,7 +217,7 @@ try {
     if (-not (Test-Path $venvPython)) {
         # Prefer the py launcher: it picks a real 3.12 rather than whatever
         # "python" happens to resolve to on this machine.
-        if (Test-RealCommand -Command 'py' -VersionArg '-3.12 --version') {
+        if (Test-RealCommand -Command 'py' -VersionArgs @('-3.12', '--version')) {
             py -3.12 -m venv (Join-Path $RepoRoot 'backend\.venv')
         } else {
             python -m venv (Join-Path $RepoRoot 'backend\.venv')
@@ -266,7 +321,8 @@ try {
     # that one task so it serves both sites.
     $caddyArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $PSScriptRoot 'Start-Caddy.ps1')`" " +
                  "-RepoRoot `"$RepoRoot`" -SiteAddress $SiteAddress " +
-                 "-PortfolioAddress $PortfolioAddress -PortfolioRoot `"$PortfolioRoot`""
+                 "-PortfolioAddress $PortfolioAddress -PortfolioRoot `"$PortfolioRoot`" " +
+                 "-CaddyExe `"$script:CaddyExe`""
     $action    = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $caddyArgs
     $trigger   = New-ScheduledTaskTrigger -AtStartup
     $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -RunLevel Highest

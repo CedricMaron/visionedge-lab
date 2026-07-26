@@ -5,14 +5,13 @@ Hyper-V, which many Windows VPS plans cannot provide because nested virtualizati
 is disabled. This is the native alternative: the same single-origin design, with
 Caddy and the backend running as ordinary Windows processes.
 
-> **Verification status.** The Caddyfile is validated (`caddy validate` against
-> Caddy 2.8), and the backend is the same code covered by 108 passing tests.
-> `Start-Backend.ps1`, `Start-Caddy.ps1` and `Install-Services.ps1` were checked
-> with the PowerShell 5.1 parser; `Deploy-VPS.ps1` was written after that route
-> stopped working and has only had a structural check (balanced blocks, ASCII-only).
-> **No script has been executed** — they were written on Linux and cannot run
-> there. Treat the first deployment as a test and use the "Verify it worked"
-> section rather than assuming.
+> **Verification status.** All four PowerShell scripts parse cleanly under the
+> PowerShell 5.1 parser. `deploy/Caddyfile.windows` was validated with the real
+> `caddy.exe v2.11.4` on Windows, and the Caddy auto-download path in
+> `Deploy-VPS.ps1` was executed end-to-end (49 MB fetched, `caddy version` ran).
+> The backend is the same code covered by 108 passing tests. What has **not** been
+> executed is the deployment itself - stopping IIS, issuing certificates, binding
+> 443. Treat the first run as a test and use the "Verify it worked" section.
 
 ## Quick start: one script
 

@@ -44,4 +44,8 @@ $env:PYTHONPATH              = Join-Path $RepoRoot 'backend'
 Set-Location (Join-Path $RepoRoot 'backend')
 
 Write-Host "Starting backend on 127.0.0.1:8000 (rate limit ${RateLimitPerMin}/min, origin https://$SiteAddress)"
+
+# uvicorn logs to stderr. Under ErrorActionPreference='Stop', PowerShell can promote
+# native stderr to a terminating error and kill the server on its first log line.
+$ErrorActionPreference = 'Continue'
 & $python -m uvicorn app.main:app --host 127.0.0.1 --port 8000

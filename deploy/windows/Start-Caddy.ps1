@@ -66,4 +66,9 @@ $env:PORTFOLIO_LOG     = (Join-Path $logDir 'portfolio.log').Replace('\', '/')
 
 Write-Host "Serving $SiteAddress from $env:SITE_ROOT"
 Write-Host "Serving $PortfolioAddress (+www) from $env:PORTFOLIO_ROOT"
+
+# Caddy writes all of its logging to stderr. Under ErrorActionPreference='Stop',
+# PowerShell can promote native stderr to a terminating error and kill the server
+# on its first ordinary log line, so relax it for the long-running process.
+$ErrorActionPreference = 'Continue'
 & $CaddyExe run --config $config
