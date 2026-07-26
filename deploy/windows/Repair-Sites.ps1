@@ -187,9 +187,20 @@ try {
         $servedTitle = Get-Title $body
         $indexPath = Join-Path $ExpectRoot 'index.html'
         if (Test-Path $indexPath) {
-            $expectTitle = Get-Title (Get-Content $indexPath -Raw)
+            # Read as UTF-8 explicitly. Get-Content on PS 5.1 defaults to
+            # Windows-1252, which turns an accented character in a title into
+            # mojibake and makes a correctly-served site look like the wrong root.
+            $expectTitle = Get-Title ([System.IO.File]::ReadAllText(
+                $indexPath, [System.Text.Encoding]::UTF8))
             if ($servedTitle -eq $expectTitle) {
                 Write-Ok "$Label : serving '$servedTitle' (matches $ExpectRoot)"
+                return $true
+            }
+            # Differing only outside ASCII means the two strings are the same text
+            # read through different encodings, not two different documents.
+            $strip = { param($s) (($s.ToCharArray() | Where-Object { [int]$_ -lt 128 }) -join '') }
+            if ((& $strip $servedTitle) -eq (& $strip $expectTitle)) {
+                Write-Warn "$Label : serving '$servedTitle' - matches $ExpectRoot apart from character encoding"
                 return $true
             }
             Write-Bad "$Label : serving '$servedTitle' but $ExpectRoot contains '$expectTitle' - wrong root"
