@@ -239,3 +239,35 @@ Resolve-DnsName visionedge.c-maron.space -Type A
 | Portfolio 404s after the handover | `-PortfolioRoot` points at the wrong directory. Check IIS Manager > Default Web Site > Basic Settings > Physical path. |
 | Camera blocked on Live Inference | A restrictive `Permissions-Policy` reached the app's site block. The app needs `camera=(self)`; only the portfolio should send `camera=()`. |
 | Caddy exits immediately with a port error | IIS still holds 80/443. `Stop-Service W3SVC`, then confirm with `Get-NetTCPConnection -LocalPort 80,443 -State Listen`. |
+
+## Repairing the sites after a Caddyfile change
+
+One Caddy instance fronts every site on the VPS, so they are repaired as a unit:
+
+```powershell
+cd C:\visionedge-lab
+.\deploy\windows\Repair-Sites.ps1
+```
+
+Pull, validate, reload, re-register the startup task, verify all three sites.
+Validation always runs before the reload, because an invalid Caddyfile takes all
+three down at once rather than only the site being edited.
+
+The startup-task step is not optional housekeeping. `Start-Caddy.ps1` exports
+`PORTFOLIO_ROOT`, and an exported variable overrides the Caddyfile's own default,
+so a task registered with a stale `-PortfolioRoot` silently reverts a corrected
+Caddyfile at the next reboot. A reload alone fixes the running process only.
+
+Verification compares the `<title>` actually served against the `<title>` in each
+site's own `index.html`, so a site serving the wrong directory is reported as
+wrong rather than merely "responded 200". It also checks that MyAlphaEdge's
+`/api` prefix survives the proxy and that an SPA route comes back `no-cache`.
+
+Once the portfolio verifies, clear the stale build that caused the mix-up:
+
+```powershell
+.\deploy\windows\Repair-Sites.ps1 -CleanStaleRoot
+```
+
+That moves `C:\inetpub\wwwroot` aside rather than deleting it, and refuses to
+touch it while the portfolio is unverified.
