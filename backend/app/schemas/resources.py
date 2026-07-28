@@ -89,6 +89,7 @@ class UtilizationSample(BaseModel):
     gpu_memory_clock_mhz: float | None = None
     gpu_temperature_c: float | None = None
     gpu_power_w: float | None = None
+    gpu_power_limit_w: float | None = None
     gpu_encoder_percent: float | None = None
     gpu_decoder_percent: float | None = None
 
