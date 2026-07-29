@@ -1,0 +1,11 @@
+# Latency vs. input size. Run once per size; the comparison page groups them.
+id: detection-input-size-320
+task: object_detection
+description: >
+  Detection at 320x320. Pairs with the 640 and 960 variants to plot latency
+  against input size on a single runtime and device.
+warmup_iterations: 3
+measured_iterations: 20
+batch_size: 1
+input_size: 320
+mode: standard

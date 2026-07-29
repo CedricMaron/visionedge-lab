@@ -1,0 +1,15 @@
+# Cold start: what a first request costs after a deploy or a scale-from-zero.
+# Deliberately few measured iterations — the interesting number is the load and
+# first-inference cost, not the steady state.
+id: detection-cold-start
+task: object_detection
+description: >
+  Measures model load, graph preparation and first inference as a cold start.
+  Warm-up is zero by design: warming up would destroy the thing being measured.
+warmup_iterations: 0
+measured_iterations: 5
+batch_size: 1
+input_size: 640
+measure_cold_start: true
+mode: standard
+timeout_seconds: 300

@@ -1,0 +1,19 @@
+# One image through a detector, steady state.
+# The baseline vision scenario: enough iterations for meaningful percentiles,
+# short enough to run on a CPU-only host in well under a minute.
+id: single-image-detection
+task: object_detection
+description: >
+  Single-image object detection at 640x640, batch 1, measuring the steady-state
+  path after warm-up. Uses the adapter's deterministic synthetic input unless a
+  dataset is supplied, so the measurement reflects the runtime rather than scene
+  content.
+warmup_iterations: 3
+measured_iterations: 20
+batch_size: 1
+concurrency: 1
+input_size: 640
+random_seed: 42
+reuse_input: true
+mode: standard
+timeout_seconds: 300

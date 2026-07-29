@@ -48,3 +48,22 @@ frontend-test: ## Frontend unit tests
 	cd frontend && npx vitest run
 
 .PHONY: help venv install install-vlm install-cuda model backend test lint fmt frontend-install frontend frontend-build frontend-test
+
+# --- InferenceLab benchmarking ---
+bench: ## Run the default detection benchmark (make bench SCENARIO=... MODEL=...)
+	cd backend && PYTHONPATH=$$PWD .venv/bin/python -m app.cli benchmark run \
+	  --scenario $${SCENARIO:-single-image-detection} --model $${MODEL:-yolov8n-onnx}
+
+bench-scenarios: ## List available benchmark scenarios
+	cd backend && PYTHONPATH=$$PWD .venv/bin/python -m app.cli scenarios
+
+bench-results: ## List stored benchmark runs
+	cd backend && PYTHONPATH=$$PWD .venv/bin/python -m app.cli results list
+
+runtimes: ## Probe every runtime and report what is actually usable
+	cd backend && PYTHONPATH=$$PWD .venv/bin/python -m app.cli runtimes
+
+system: ## Show the hardware and software environment
+	cd backend && PYTHONPATH=$$PWD .venv/bin/python -m app.cli system
+
+.PHONY: bench bench-scenarios bench-results runtimes system

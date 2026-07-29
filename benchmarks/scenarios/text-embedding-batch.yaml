@@ -1,0 +1,11 @@
+id: text-embedding-batch
+task: text_embedding
+description: >
+  Batched text embedding. Sequence length is fixed so that tokenization cost is
+  comparable across runs; embedding dimensionality and bytes-per-vector are
+  reported as quality metrics rather than performance ones.
+warmup_iterations: 3
+measured_iterations: 20
+batch_size: 8
+sequence_length: 128
+mode: standard

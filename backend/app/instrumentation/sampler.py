@@ -32,11 +32,16 @@ from app.schemas.resources import UtilizationSample, UtilizationSeries
 
 log = get_logger("instrumentation.sampler")
 
-#: Sampling cadence per benchmark mode. Standard is deliberately coarse: at 1 s the
-#: sampler's cost is negligible against the workload, which is what "minimal
-#: measurement distortion" requires.
+#: Sampling cadence per benchmark mode.
+#:
+#: Standard is 250 ms rather than 1 s. At 1 s a typical short run collected only two
+#: power samples, below the minimum needed to integrate a power series, so energy was
+#: never available in the default mode. At 250 ms, with lean detail measured at
+#: ~5 ms per tick under load, the sampler costs about 2% of one thread — small
+#: against a workload saturating several — and a run of one second upwards yields a
+#: usable power series.
 INTERVAL_MS_BY_MODE = {
-    "standard": 1000.0,
+    "standard": 250.0,
     "detailed": 100.0,
     "profiler": 100.0,
 }

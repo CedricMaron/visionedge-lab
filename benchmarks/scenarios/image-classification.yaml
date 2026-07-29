@@ -1,0 +1,10 @@
+id: single-image-classification
+task: image_classification
+description: >
+  Single-image classification at the model's native input size, batch 1,
+  steady state after warm-up.
+warmup_iterations: 3
+measured_iterations: 20
+batch_size: 1
+input_size: 224
+mode: standard

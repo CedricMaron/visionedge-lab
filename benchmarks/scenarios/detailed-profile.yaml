@@ -1,0 +1,12 @@
+# Detailed instrumentation. NOT comparable with standard-mode results — the
+# engine attaches a warning saying so to every run produced from this scenario.
+id: detection-detailed-profile
+task: object_detection
+description: >
+  Detection with high-frequency hardware sampling (100 ms) for utilization and
+  power time series. Adds measurable instrumentation overhead.
+warmup_iterations: 3
+measured_iterations: 30
+batch_size: 1
+input_size: 640
+mode: detailed
