@@ -19,7 +19,9 @@ import sys
 from pathlib import Path
 
 from app.adapters.base import LoadConfig
+from app.adapters.classification.mobilenet import MobileNetClassifierAdapter
 from app.adapters.detection.yolov8 import YoloV8Adapter
+from app.adapters.embedding.minilm import MiniLmEmbeddingAdapter
 from app.benchmark.engine import BenchmarkEngine, EngineOptions
 from app.benchmark.export import iterations_to_csv, summary_to_csv, to_json, to_markdown
 from app.benchmark.scenarios import get_scenario, load_all
@@ -35,30 +37,50 @@ PROG = "inference-lab"
 
 # --- adapter construction ---------------------------------------------------
 
+#: model_id -> (relative path under models/, adapter factory, install hint).
+#: Explicit rather than dynamic: resolving an adapter class by name from user input
+#: would be an arbitrary-import primitive (§25).
+_MODELS: dict[str, tuple[str, str, str]] = {
+    "yolov8n-onnx": ("yolov8n.onnx", "yolov8", "run `make model`"),
+    "yolov8s-onnx": ("yolov8s.onnx", "yolov8", "run `scripts/export_onnx.py --model small`"),
+    "yolov8m-onnx": ("yolov8m.onnx", "yolov8", "run `scripts/export_onnx.py --model medium`"),
+    "mobilenetv4-conv-small-onnx": (
+        "classification/mobilenetv4_conv_small.onnx", "mobilenet",
+        "run `python scripts/download_models.py --model mobilenetv4-conv-small-onnx`",
+    ),
+    "all-minilm-l6-v2-onnx": (
+        "embedding/all-MiniLM-L6-v2.onnx", "minilm",
+        "run `python scripts/download_models.py --model all-minilm-l6-v2-onnx`",
+    ),
+}
+
+
 def _build_adapter(model_id: str, runtime_id: str, input_size: int | None):
-    """Map a model id to its adapter.
+    """Map a model id to its adapter."""
+    entry = _MODELS.get(model_id)
+    if entry is None:
+        available = ", ".join(sorted(_MODELS))
+        raise InferenceLabError(
+            f"unknown model '{model_id}'",
+            user_message=f"'{model_id}' has no adapter. Available: {available}",
+        )
 
-    Explicit rather than dynamic: a registry that imported adapter classes by name
-    from user input would be an arbitrary-import primitive (§25).
-    """
+    relative, kind, hint = entry
+    path = get_settings().models_dir / relative
+    if not path.exists():
+        raise InferenceLabError(
+            f"model file not found: {path}",
+            user_message=f"'{model_id}' is not installed — {hint}.",
+        )
+
     runtime = get_adapter(runtime_id)
-    models_dir = get_settings().models_dir
-
-    if model_id in ("yolov8n-onnx", "yolov8s-onnx", "yolov8m-onnx"):
-        filename = {"yolov8n-onnx": "yolov8n.onnx", "yolov8s-onnx": "yolov8s.onnx",
-                    "yolov8m-onnx": "yolov8m.onnx"}[model_id]
-        path = models_dir / filename
-        if not path.exists():
-            raise InferenceLabError(
-                f"model file not found: {path}",
-                user_message=f"'{model_id}' is not installed. Run `make model` to export it.",
-            )
+    if kind == "yolov8":
         return YoloV8Adapter(path, runtime, model_id=model_id, input_size=input_size or 640)
-
-    raise InferenceLabError(
-        f"unknown model '{model_id}'",
-        user_message=f"'{model_id}' has no adapter. Run `{PROG} models` to list what is available.",
-    )
+    if kind == "mobilenet":
+        return MobileNetClassifierAdapter(path, runtime, model_id=model_id)
+    if kind == "minilm":
+        return MiniLmEmbeddingAdapter(path, runtime, model_id=model_id)
+    raise InferenceLabError(f"no adapter factory for kind '{kind}'")
 
 
 def _reproduction_command(args: argparse.Namespace) -> str:
@@ -104,6 +126,22 @@ def cmd_matrix(args: argparse.Namespace) -> int:
         mark = "yes" if row["supported"] else "no"
         print(f"{row['runtime_id']:24} {row['device']:6} {row['precision']:10} {mark:4} "
               f"{row['reason'] or ''}")
+    return 0
+
+
+def cmd_models(args: argparse.Namespace) -> int:
+    models_dir = get_settings().models_dir
+    print(f"{'model_id':32} {'status':14} {'task':22} path")
+    print("-" * 108)
+    for model_id, (relative, kind, hint) in sorted(_MODELS.items()):
+        path = models_dir / relative
+        installed = path.exists()
+        task = {"yolov8": "object_detection", "mobilenet": "image_classification",
+                "minilm": "text_embedding"}.get(kind, "unknown")
+        status = "installed" if installed else "not installed"
+        print(f"{model_id:32} {status:14} {task:22} {relative}")
+        if not installed:
+            print(f"{'':32} -> {hint}")
     return 0
 
 
@@ -308,6 +346,7 @@ def build_parser() -> argparse.ArgumentParser:
     matrix.add_argument("--supported-only", action="store_true")
     matrix.set_defaults(func=cmd_matrix)
 
+    sub.add_parser("models", help="list models with an adapter").set_defaults(func=cmd_models)
     sub.add_parser("scenarios", help="list benchmark scenarios").set_defaults(func=cmd_scenarios)
     sub.add_parser("system", help="show hardware and software environment").set_defaults(
         func=cmd_system

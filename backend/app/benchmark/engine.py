@@ -328,8 +328,13 @@ class BenchmarkEngine:
         timeline.start()
         synchronize = getattr(adapter, "synchronize", None)
 
+        # Text adapters report TOKENIZATION here; image adapters PREPROCESSING. Using a
+        # single hardcoded phase would have hidden tokenization cost inside a generic
+        # bucket for every text workload.
+        preprocess_phase = getattr(adapter, "preprocess_phase", Phase.PREPROCESSING)
+
         try:
-            with timeline.span(Phase.PREPROCESSING):
+            with timeline.span(preprocess_phase):
                 prepared = adapter.preprocess(request)
             with timeline.span(Phase.MODEL_EXECUTION, synchronize=synchronize):
                 raw = adapter.infer(prepared)

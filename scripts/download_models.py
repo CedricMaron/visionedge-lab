@@ -42,9 +42,15 @@ PT_WEIGHTS = {
 
 
 def _load_registry():
-    from app.models.registry import load_registry
+    """Load the registry with deployment status derived from disk.
 
-    return load_registry(REGISTRY_PATH)
+    Without refresh_deployment_status the status shown is whatever the JSON happens
+    to say, so an installed model can report "not_installed" — which is exactly the
+    kind of stale claim the registry is supposed to prevent.
+    """
+    from app.models.registry import load_registry, refresh_deployment_status
+
+    return refresh_deployment_status(load_registry(REGISTRY_PATH))
 
 
 def _installed(local_path: str) -> bool:
@@ -53,19 +59,26 @@ def _installed(local_path: str) -> bool:
 
 def cmd_list() -> int:
     reg = _load_registry()
-    print(f"{'model_id':<20}{'kind':<10}{'status':<14}{'size':<12}local_path")
-    print("-" * 78)
+    print(f"{'model_id':<30}{'kind':<22}{'status':<15}{'size':<11}local_path")
+    print("-" * 100)
     for m in reg.detection_models:
         status = "installed" if _installed(m.local_path) else "not_installed"
         p = C.REPO_ROOT / m.local_path
         size = C.human_size(C.file_size(p)) if p.exists() else (
             C.human_size(m.file_size_bytes) if m.file_size_bytes else "?"
         )
-        print(f"{m.model_id:<20}{'detection':<10}{status:<14}{size:<12}{m.local_path}")
+        print(f"{m.model_id:<30}{'detection':<22}{status:<15}{size:<11}{m.local_path}")
     for v in reg.vlm_models:
         status = "builtin" if v.model_source == "builtin" else "opt-in"
-        print(f"{v.model_id:<20}{'vlm':<10}{status:<14}{'-':<12}{v.model_source}")
-    print("\nInstall a detection model with: --install <model_id>")
+        print(f"{v.model_id:<30}{'vlm':<22}{status:<15}{'-':<11}{v.model_source}")
+    for m in getattr(reg, "models", []):
+        p = C.REPO_ROOT / m.local_path
+        size = C.human_size(C.file_size(p)) if p.exists() else (
+            C.human_size(m.file_size_bytes) if m.file_size_bytes else "?"
+        )
+        print(f"{m.model_id:<30}{m.task:<22}{m.deployment_status:<15}{size:<11}{m.local_path}")
+
+    print("\nInstall a model with: --install <model_id>")
     print("VLM models are opt-in via transformers (see backend/requirements/vlm.txt).")
     return 0
 
@@ -86,8 +99,54 @@ def _confirm_large(est_bytes: int, assume_yes: bool) -> None:
         C.die("aborted by user.", code=2)
 
 
+def _install_adapter_model(entry, assume_yes: bool) -> int:
+    """Install an adapter-architecture model plus every companion file it needs.
+
+    Companion files (tokenizers, preprocessing configs) are not optional: a model
+    whose tokenizer is missing would load and then produce silently wrong output,
+    which is worse than failing. So the install is all-or-nothing.
+    """
+    target = C.REPO_ROOT / entry.local_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    if not entry.download_url:
+        C.die(f"'{entry.model_id}' declares no download_url; install it manually "
+              f"({entry.install_hint or 'no hint recorded'})")
+
+    est = entry.file_size_bytes or (100 * 1024 * 1024)
+    free = _free_disk_bytes(C.MODELS_DIR)
+    C.info(f"estimated download: ~{C.human_size(est)}; free disk: {C.human_size(free)}")
+    if free < est * 2:
+        C.warn("low free disk space relative to model size.")
+    _confirm_large(est, assume_yes)
+
+    if target.exists():
+        C.info(f"weights already present at {target}")
+    else:
+        _download_url(entry.download_url, target)
+    if entry.checksum_sha256:
+        _verify(target, entry.checksum_sha256)
+
+    for companion in entry.companion_files:
+        dest = target.parent / companion.file_name
+        if dest.exists():
+            C.info(f"companion already present: {companion.file_name}")
+        else:
+            C.info(f"fetching companion {companion.file_name} ({companion.purpose})")
+            _download_url(companion.download_url, dest)
+        if companion.checksum_sha256:
+            _verify(dest, companion.checksum_sha256)
+
+    C.ok(f"installed {entry.model_id} -> {target} ({C.human_size(C.file_size(target))})")
+    return 0
+
+
 def cmd_install(model_id: str, assume_yes: bool) -> int:
     reg = _load_registry()
+    adapter_entry = reg.adapter_model(model_id) if hasattr(reg, "adapter_model") else None
+    if adapter_entry is not None and adapter_entry.download_url:
+        return _install_adapter_model(adapter_entry, assume_yes)
+
     det = reg.detection(model_id)
     vlm = reg.vlm(model_id)
 

@@ -38,7 +38,7 @@ from app.inference.postprocess import decode_yolov8
 from app.inference.preprocess import letterbox, scale_boxes, to_model_input
 from app.models.coco import COCO_CLASSES
 from app.runtimes.base import RuntimeAdapter, SessionConfig, SessionHandle
-from app.schemas.enums import DeviceKind, Modality, Precision, Task
+from app.schemas.enums import DeviceKind, Modality, Phase, Precision, Task
 from app.schemas.measurement import Measurement
 from app.schemas.quality import DetectionQuality, QualityMetrics
 
@@ -50,6 +50,9 @@ _DEFAULT_IOU = 0.45
 
 class YoloV8Adapter:
     """Detection over a YOLOv8 ONNX graph."""
+
+    #: Image preprocessing: letterbox resize plus normalization.
+    preprocess_phase = Phase.PREPROCESSING
 
     def __init__(
         self,

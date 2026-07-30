@@ -35,7 +35,7 @@ from app.adapters.base import (
     ReferenceOutput,
 )
 from app.core.errors import ConfigInvalidError
-from app.schemas.enums import DeviceKind, Modality, Precision, Task
+from app.schemas.enums import DeviceKind, Modality, Phase, Precision, Task
 from app.schemas.measurement import Measurement
 from app.schemas.quality import ClassificationQuality, QualityMetrics
 
@@ -64,6 +64,8 @@ def assert_test_adapter_allowed(allow_override: bool = False) -> None:
 
 class MockAdapter:
     """Fabricates deterministic results for testing the engine, not a model."""
+
+    preprocess_phase = Phase.PREPROCESSING
 
     def __init__(
         self,

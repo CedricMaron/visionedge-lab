@@ -18,3 +18,9 @@ structlog>=24.1
 pytest>=8.0
 pytest-asyncio>=0.23
 ruff>=0.4
+
+# Text embedding needs a tokenizer (small, Rust-backed).
+tokenizers>=0.15
+
+# Benchmark scenario definitions.
+pyyaml>=6.0

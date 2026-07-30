@@ -23,7 +23,7 @@ from typing import Any, Protocol, runtime_checkable
 import numpy as np
 from pydantic import BaseModel, Field
 
-from app.schemas.enums import DeviceKind, Modality, Precision, Task
+from app.schemas.enums import DeviceKind, Modality, Phase, Precision, Task
 from app.schemas.quality import QualityMetrics
 
 
@@ -206,6 +206,12 @@ class ModelAdapter(Protocol):
     """
 
     metadata: ModelMetadata
+
+    #: Which timeline phase this adapter's ``preprocess`` represents. Image models
+    #: report PREPROCESSING; text models report TOKENIZATION, because "preprocessing"
+    #: would hide the single most informative phase of a text pipeline. Optional —
+    #: the engine defaults to PREPROCESSING when an adapter does not declare one.
+    preprocess_phase: Phase
 
     def load(self, config: LoadConfig) -> LoadResult: ...
 

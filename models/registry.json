@@ -236,5 +236,122 @@
       "deployment_status": "not_installed",
       "nature": "real integration; requires GPU. Exceeds 6GB VRAM at fp16 alongside detector \u2014 quantize or run on server."
     }
+  ],
+  "models": [
+    {
+      "model_id": "yolov8n-onnx",
+      "display_name": "YOLOv8 Nano (ONNX)",
+      "family": "yolov8",
+      "task": "object_detection",
+      "modality": "image",
+      "adapter": "yolov8",
+      "source_repository": "https://github.com/ultralytics/ultralytics",
+      "model_license": "AGPL-3.0",
+      "weights_license": "AGPL-3.0",
+      "commercial_use_permitted": false,
+      "auto_download_permitted": true,
+      "parameters_millions": 3.2,
+      "file_name": "yolov8n.onnx",
+      "file_size_bytes": 12851139,
+      "checksum_sha256": "2a8df06a8387509e51e233f19d2ce839af255ae008cf03c982415ffe6f236030",
+      "local_path": "models/yolov8n.onnx",
+      "input_size": 640,
+      "supported_runtimes": [
+        "onnxruntime"
+      ],
+      "supported_devices": [
+        "cpu",
+        "cuda"
+      ],
+      "supported_precisions": [
+        "fp32",
+        "int8"
+      ],
+      "install_hint": "make model",
+      "notes": "Baseline detector. Postprocessing is a from-scratch NumPy reimplementation validated against Ultralytics."
+    },
+    {
+      "model_id": "mobilenetv4-conv-small-onnx",
+      "display_name": "MobileNetV4 Conv Small (ONNX, ImageNet-1k)",
+      "family": "mobilenetv4",
+      "task": "image_classification",
+      "modality": "image",
+      "adapter": "mobilenet",
+      "source_repository": "https://github.com/huggingface/pytorch-image-models",
+      "paper_url": "https://arxiv.org/abs/2404.10518",
+      "model_license": "Apache-2.0",
+      "weights_license": "Apache-2.0",
+      "commercial_use_permitted": true,
+      "auto_download_permitted": true,
+      "revision": "e2400_r224_in1k",
+      "parameters_millions": 3.8,
+      "file_name": "mobilenetv4_conv_small.onnx",
+      "file_size_bytes": 15086122,
+      "checksum_sha256": "ca5b8dbf490f54e83c5d72f787821565447ea94347935f6b834cf0a4af0e8d37",
+      "download_url": "https://huggingface.co/onnx-community/mobilenetv4_conv_small.e2400_r224_in1k/resolve/main/onnx/model.onnx",
+      "local_path": "models/classification/mobilenetv4_conv_small.onnx",
+      "companion_files": [
+        {
+          "file_name": "config.json",
+          "download_url": "https://huggingface.co/onnx-community/mobilenetv4_conv_small.e2400_r224_in1k/resolve/main/config.json",
+          "checksum_sha256": "ae99506e66f8e19bc73809e5b4c3ae31fc7c2bca53752dc7cb89c1e47831a335",
+          "purpose": "ImageNet class labels plus the crop_pct and input_size the weights were trained with"
+        }
+      ],
+      "input_size": 224,
+      "supported_runtimes": [
+        "onnxruntime"
+      ],
+      "supported_devices": [
+        "cpu",
+        "cuda"
+      ],
+      "supported_precisions": [
+        "fp32",
+        "int8"
+      ],
+      "install_hint": "python scripts/download_models.py --install mobilenetv4-conv-small-onnx",
+      "notes": "Permissively licensed classifier. Preprocessing follows the timm convention read from config.json rather than hardcoded."
+    },
+    {
+      "model_id": "all-minilm-l6-v2-onnx",
+      "display_name": "all-MiniLM-L6-v2 (ONNX)",
+      "family": "minilm",
+      "task": "text_embedding",
+      "modality": "text",
+      "adapter": "minilm",
+      "source_repository": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2",
+      "model_license": "Apache-2.0",
+      "weights_license": "Apache-2.0",
+      "commercial_use_permitted": true,
+      "auto_download_permitted": true,
+      "parameters_millions": 22.7,
+      "file_name": "all-MiniLM-L6-v2.onnx",
+      "file_size_bytes": 90405214,
+      "checksum_sha256": "6fd5d72fe4589f189f8ebc006442dbb529bb7ce38f8082112682524616046452",
+      "download_url": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx",
+      "local_path": "models/embedding/all-MiniLM-L6-v2.onnx",
+      "companion_files": [
+        {
+          "file_name": "tokenizer.json",
+          "download_url": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer.json",
+          "checksum_sha256": "be50c3628f2bf5bb5e3a7f17b1f74611b2561a3a27eeab05e5aa30f411572037",
+          "purpose": "WordPiece tokenizer; a substitute would silently produce wrong embeddings"
+        }
+      ],
+      "supported_runtimes": [
+        "onnxruntime"
+      ],
+      "supported_devices": [
+        "cpu",
+        "cuda"
+      ],
+      "supported_precisions": [
+        "fp32",
+        "int8"
+      ],
+      "install_hint": "python scripts/download_models.py --install all-minilm-l6-v2-onnx",
+      "notes": "Sentence embeddings with attention-masked mean pooling and L2 normalization, matching sentence-transformers."
+    }
   ]
 }
