@@ -1,4 +1,76 @@
-# System Architecture
+# Architecture
+
+> **InferenceLab** — multimodal AI inference, profiling and benchmarking.
+>
+> This document describes the platform architecture after the InferenceLab migration.
+> For the original VisionEdge Lab design and what carried forward, see
+> [MIGRATION.md](MIGRATION.md).
+
+## Layered design
+
+The platform separates concerns that are usually tangled, and the separation is what
+makes the (model × runtime × device × precision) matrix real rather than asserted:
+
+```
+                       ┌──────────────────────────────┐
+                       │  Web UI          CLI         │   one engine, two front doors
+                       └──────────────┬───────────────┘
+                       ┌──────────────▼───────────────┐
+                       │      Benchmark engine        │   lifecycle, integrity rules
+                       └──┬────────────┬───────────┬──┘
+          ┌───────────────▼──┐  ┌──────▼───────┐  ┌▼──────────────────┐
+          │  Model adapters  │  │ Instrumenta- │  │  Runtime adapters │
+          │  (task-specific) │  │ tion         │  │  (execution)      │
+          └──────────────────┘  └──────────────┘  └───────────────────┘
+                       ┌──────────────────────────────┐
+                       │  Schemas · Storage · Probes  │
+                       └──────────────────────────────┘
+```
+
+| Layer | Owns | Never touches |
+|---|---|---|
+| **Schemas** (`app/schemas/`) | Versioned contracts, `Measurement` provenance | I/O |
+| **Model adapters** (`app/adapters/`) | Pre/post-processing, quality evaluation, metadata | Sessions, providers, clocks |
+| **Runtime adapters** (`app/runtimes/`) | Sessions, devices, threads, synchronization | Tensor meaning |
+| **Instrumentation** (`app/instrumentation/`) | Timing, probes, sampling, energy, environment | Execution |
+| **Benchmark engine** (`app/benchmark/`) | Lifecycle, statistics, integrity warnings | Model or runtime specifics |
+| **Storage** (`app/storage/`) | Versioned SQLite, raw iteration retention | Metric computation |
+| **API / CLI** | Selection, filtering, serialization | Computing any metric |
+
+The last row matters: **no route computes a metric.** Both front doors call the same
+engine, so the web UI and the command line cannot disagree about what a number means.
+
+## Core invariants
+
+1. **No metric without provenance.** Every value is a `Measurement` carrying its unit,
+   kind (measured / derived / estimated), instrumentation source, and — when absent —
+   the reason. Pydantic validators reject a valueless measurement with no reason and an
+   estimate with no documented methodology.
+2. **No claim without a probe.** A runtime is offered only if its capability probe
+   succeeded on this machine.
+3. **No silent fallback.** A session that landed on a different device than requested
+   is refused, not adopted.
+4. **No averages without evidence.** Raw per-iteration samples are persisted; any
+   percentile can be recomputed from stored data.
+5. **No hidden exclusions.** Warm-up and failed iterations are retained, marked, and
+   excluded from statistics — with the exclusion stated in the result.
+
+## Documentation map
+
+| Document | Contents |
+|---|---|
+| [MIGRATION.md](MIGRATION.md) | VisionEdge Lab → InferenceLab: inventory, reuse, order |
+| [BENCHMARK_METHODOLOGY.md](BENCHMARK_METHODOLOGY.md) | Clocks, synchronization, sampling, energy, integrity |
+| [METRICS.md](METRICS.md) | Every metric: unit, source, formula, limits |
+| [MODEL_ADAPTERS.md](MODEL_ADAPTERS.md) | Adapter contract and correctness traps |
+| [RUNTIMES.md](RUNTIMES.md) | Runtime contract and capability states |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Setup, commands, conventions |
+
+---
+
+## Original VisionEdge Lab architecture
+
+Retained below for the vision slice, which continues to work unchanged.
 
 VisionEdge Lab combines three layers of visual intelligence over a single camera stream:
 **detection** (where are the objects), **vision-language** (what is happening), and
