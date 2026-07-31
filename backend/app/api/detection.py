@@ -11,8 +11,10 @@ import time
 import uuid
 
 from fastapi import APIRouter, File, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
+from app.adapters.remote.http_adapter import REQUEST_ID_HEADER
 from app.api.imaging import decode_image_bytes
 from app.benchmarking.auto import BENCHMARK_JOB_KIND
 from app.benchmarking.auto import DEFAULT_RUNS as AUTO_BENCHMARK_RUNS
@@ -36,12 +38,29 @@ async def infer(
     iou: float | None = Query(None, ge=0.0, le=1.0),
     classes: str | None = Query(None, description="comma-separated class ids to keep"),
 ):
-    """Single-image detection over the currently loaded backend."""
+    """Single-image detection over the currently loaded backend.
+
+    The response carries a server-side timing envelope so a remote client can
+    decompose its round trip without guessing. ``server_total_ms`` spans from the
+    moment the request body was fully read to just before serialization, and is
+    measured independently rather than summed from the phases — the difference
+    between the two is real scheduler and threadpool overhead, and the client shows
+    it as unaccounted server time rather than hiding it.
+    """
     state = get_state(request)
+    request_id = request.headers.get(REQUEST_ID_HEADER) or uuid.uuid4().hex
+
+    t_received = time.perf_counter()
     data = await file.read()
     if len(data) > state.settings.max_upload_bytes:
-        return {"error": "file too large"}
+        return {"error": "file too large", "request_id": request_id}
+
+    t_decode_start = time.perf_counter()
     img = decode_image_bytes(data)
+    decode_ms = (time.perf_counter() - t_decode_start) * 1000.0
+    # Time spent reading the uploaded body before decoding could begin.
+    queue_ms = (t_decode_start - t_received) * 1000.0
+
     allowed = {int(c) for c in classes.split(",") if c.strip().isdigit()} if classes else None
 
     t0 = time.perf_counter()
@@ -54,17 +73,23 @@ async def infer(
     state.metrics.record(timings["inference_ms"], e2e)
     FRAMES_TOTAL.labels(backend=backend).inc()
     INFERENCE_LATENCY.labels(backend=backend).observe(timings["inference_ms"])
-    return {
+
+    body = {
+        "request_id": request_id,
         "detections": [d.model_dump() for d in dets],
         "timings": {
-            "preprocess_ms": round(timings["preprocess_ms"], 2),
-            "inference_ms": round(timings["inference_ms"], 2),
-            "postprocess_ms": round(timings["postprocess_ms"], 2),
-            "end_to_end_ms": round(e2e, 2),
+            "queue_ms": round(queue_ms, 3),
+            "decode_ms": round(decode_ms, 3),
+            "preprocess_ms": round(timings["preprocess_ms"], 3),
+            "inference_ms": round(timings["inference_ms"], 3),
+            "postprocess_ms": round(timings["postprocess_ms"], 3),
+            "end_to_end_ms": round(e2e, 3),
+            "server_total_ms": round((time.perf_counter() - t_received) * 1000.0, 3),
         },
         "backend": backend,
         "count": len(dets),
     }
+    return JSONResponse(content=body, headers={REQUEST_ID_HEADER: request_id})
 
 
 def _start_auto_benchmark(state) -> None:

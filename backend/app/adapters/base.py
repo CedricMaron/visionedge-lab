@@ -166,6 +166,10 @@ class RawOutput:
 
     tensors: list[np.ndarray]
     names: list[str] = field(default_factory=list)
+    #: Non-tensor output, for runtimes that return structured data rather than
+    #: arrays (a remote endpoint returning JSON, for example). Kept separate from
+    #: `tensors` so a postprocessor cannot mistake one for the other.
+    payload: Any = None
 
 
 @dataclass(slots=True)
