@@ -18,7 +18,7 @@ function BenchTable({ rows, highlightFirst }: { rows: BenchmarkResult[]; highlig
     <div className="card overflow-x-auto">
       <table className="w-full min-w-[760px] text-sm">
         <thead>
-          <tr className="border-b border-surface-700 text-left text-xs uppercase tracking-wide text-slate-500">
+          <tr className="border-b border-subtle text-left text-xs uppercase tracking-wide text-muted">
             <th className="px-3 py-2.5">Model</th>
             <th className="px-3 py-2.5">Backend</th>
             <th className="px-3 py-2.5">Device / provider</th>
@@ -36,28 +36,28 @@ function BenchTable({ rows, highlightFirst }: { rows: BenchmarkResult[]; highlig
           {rows.map((b, i) => (
             <tr
               key={i}
-              className={`border-b border-surface-800 last:border-0 ${
+              className={`border-b border-subtle last:border-0 ${
                 highlightFirst && i === 0 ? 'bg-accent/5' : ''
               }`}
             >
-              <td className="px-3 py-2.5 font-mono text-xs text-slate-200">{b.model_id}</td>
-              <td className="px-3 py-2.5 text-slate-300">{b.backend}</td>
-              <td className="px-3 py-2.5 text-slate-400">
+              <td className="px-3 py-2.5 font-mono text-xs text-primary">{b.model_id}</td>
+              <td className="px-3 py-2.5 text-secondary">{b.backend}</td>
+              <td className="px-3 py-2.5 text-secondary">
                 {b.device} / {b.provider}
               </td>
-              <td className="px-3 py-2.5 font-mono text-slate-300">{b.input_size}</td>
-              <td className="px-3 py-2.5 text-slate-300">{b.precision}</td>
+              <td className="px-3 py-2.5 font-mono text-secondary">{b.input_size}</td>
+              <td className="px-3 py-2.5 text-secondary">{b.precision}</td>
               <td className="px-3 py-2.5 text-right font-mono text-accent">{b.fps.toFixed(1)}</td>
-              <td className="px-3 py-2.5 text-right font-mono text-slate-300">{formatMs(b.latency_mean_ms)}</td>
-              <td className="px-3 py-2.5 text-right font-mono text-slate-300">{formatMs(b.latency_p50_ms)}</td>
-              <td className="px-3 py-2.5 text-right font-mono text-slate-300">{formatMs(b.latency_p95_ms)}</td>
-              <td className="px-3 py-2.5 text-right font-mono text-slate-300">{formatMs(b.latency_p99_ms)}</td>
-              <td className="px-3 py-2.5 text-right font-mono text-slate-300">{formatMb(b.memory_rss_mb)}</td>
+              <td className="px-3 py-2.5 text-right font-mono text-secondary">{formatMs(b.latency_mean_ms)}</td>
+              <td className="px-3 py-2.5 text-right font-mono text-secondary">{formatMs(b.latency_p50_ms)}</td>
+              <td className="px-3 py-2.5 text-right font-mono text-secondary">{formatMs(b.latency_p95_ms)}</td>
+              <td className="px-3 py-2.5 text-right font-mono text-secondary">{formatMs(b.latency_p99_ms)}</td>
+              <td className="px-3 py-2.5 text-right font-mono text-secondary">{formatMb(b.memory_rss_mb)}</td>
             </tr>
           ))}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={11} className="px-3 py-6 text-center text-slate-500">
+              <td colSpan={11} className="px-3 py-6 text-center text-muted">
                 No benchmarks recorded yet.
               </td>
             </tr>
@@ -73,7 +73,7 @@ export function ComparisonTable({ rows }: { rows: BenchmarkComparisonRow[] }) {
     <div className="card overflow-x-auto">
       <table className="w-full min-w-[680px] text-sm">
         <thead>
-          <tr className="border-b border-surface-700 text-left text-xs uppercase tracking-wide text-slate-500">
+          <tr className="border-b border-subtle text-left text-xs uppercase tracking-wide text-muted">
             <th className="px-3 py-2.5">Model</th>
             <th className="px-3 py-2.5">Device / provider</th>
             <th className="px-3 py-2.5">Input</th>
@@ -86,9 +86,9 @@ export function ComparisonTable({ rows }: { rows: BenchmarkComparisonRow[] }) {
           {rows.map((g) => (
             <tr
               key={`${g.model_id}-${g.provider}-${g.input_size}-${g.precision}`}
-              className="border-b border-surface-800 last:border-0"
+              className="border-b border-subtle last:border-0"
             >
-              <td className="px-3 py-2.5 font-mono text-xs text-slate-200">
+              <td className="px-3 py-2.5 font-mono text-xs text-primary">
                 {g.model_id}
                 {g.any_concurrent_traffic && (
                   <span
@@ -99,22 +99,22 @@ export function ComparisonTable({ rows }: { rows: BenchmarkComparisonRow[] }) {
                   </span>
                 )}
               </td>
-              <td className="px-3 py-2.5 text-slate-400">
+              <td className="px-3 py-2.5 text-secondary">
                 {g.device} / {g.provider ?? '—'}
               </td>
-              <td className="px-3 py-2.5 font-mono text-slate-300">{g.input_size}</td>
+              <td className="px-3 py-2.5 font-mono text-secondary">{g.input_size}</td>
               <td className="px-3 py-2.5 text-right font-mono text-accent">
                 {g.median_fps?.toFixed(1) ?? '—'}
               </td>
-              <td className="px-3 py-2.5 text-right font-mono text-slate-300">
+              <td className="px-3 py-2.5 text-right font-mono text-secondary">
                 {g.median_p50_ms !== null ? formatMs(g.median_p50_ms) : '—'}
               </td>
-              <td className="px-3 py-2.5 text-right font-mono text-slate-400">n={g.n}</td>
+              <td className="px-3 py-2.5 text-right font-mono text-secondary">n={g.n}</td>
             </tr>
           ))}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={6} className="px-3 py-6 text-center text-slate-500">
+              <td colSpan={6} className="px-3 py-6 text-center text-muted">
                 No benchmarks recorded yet. Switch a model to record one automatically.
               </td>
             </tr>
@@ -168,7 +168,7 @@ export default function BenchmarksPage() {
         <button className="btn-primary" disabled={running} onClick={runBench}>
           {running ? (
             <>
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-surface-950/40 border-t-surface-950" />
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-accent-contrast border-t-accent-contrast" />
               Running {runs} runs…
             </>
           ) : (
@@ -196,7 +196,7 @@ export default function BenchmarksPage() {
       )}
 
       <h2 className="label mb-2 mt-6">Model comparison (median across runs)</h2>
-      <p className="mb-2 text-xs text-slate-500">
+      <p className="mb-2 text-xs text-muted">
         Median rather than best, so one lucky run can&apos;t flatter a model. Only comparable
         within this host. Rows marked <span className="text-warn">loaded</span> were measured
         while live inference was running.

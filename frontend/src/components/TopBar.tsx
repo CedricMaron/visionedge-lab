@@ -18,8 +18,8 @@ function HealthPill() {
         {map.label}
       </span>
       {state === 'online' && (
-        <span className="hidden text-xs text-slate-500 sm:inline">
-          detector: <span className="text-slate-300">{health}</span>
+        <span className="hidden text-xs text-muted sm:inline">
+          detector: <span className="text-secondary">{health}</span>
           {warnings.length > 0 && (
             <span className="ml-1 text-warn">· {warnings.length} warning{warnings.length > 1 ? 's' : ''}</span>
           )}
@@ -32,7 +32,7 @@ function HealthPill() {
 export function TopBar({ onMenu }: { onMenu: () => void }) {
   const apiBase = useSettingsStore((s) => s.apiBase);
   return (
-    <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-surface-800 bg-surface-950/85 px-4 py-3 backdrop-blur">
+    <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-subtle bg-canvas/85 px-4 py-3 backdrop-blur">
       <button
         className="btn-ghost px-2 py-2 lg:hidden"
         onClick={onMenu}
@@ -42,7 +42,7 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
       </button>
       <HealthPill />
       <div className="ml-auto flex items-center gap-3">
-        <span className="hidden max-w-[220px] truncate font-mono text-xs text-slate-500 sm:inline">
+        <span className="hidden max-w-[220px] truncate font-mono text-xs text-muted sm:inline">
           {apiBase}
         </span>
       </div>

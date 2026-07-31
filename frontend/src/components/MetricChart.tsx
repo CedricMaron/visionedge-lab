@@ -37,8 +37,8 @@ export function MetricChart({
   return (
     <div className="card card-pad">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-medium text-slate-200">{title}</h3>
-        {unit && <span className="text-xs text-slate-500">{unit}</span>}
+        <h3 className="text-sm font-medium text-primary">{title}</h3>
+        {unit && <span className="text-xs text-muted">{unit}</span>}
       </div>
       <div style={{ width: '100%', height }}>
         <ResponsiveContainer>
@@ -78,7 +78,7 @@ export function MetricChart({
       </div>
       <div className="mt-2 flex flex-wrap gap-3">
         {series.map((s) => (
-          <span key={s.key} className="flex items-center gap-1.5 text-xs text-slate-400">
+          <span key={s.key} className="flex items-center gap-1.5 text-xs text-secondary">
             <span className="h-2 w-2 rounded-full" style={{ background: s.color }} />
             {s.label}
           </span>

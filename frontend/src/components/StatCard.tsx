@@ -17,7 +17,7 @@ export function StatCard({
   sub?: string;
 }) {
   const toneText: Record<string, string> = {
-    neutral: 'text-slate-100',
+    neutral: 'text-primary',
     good: 'text-good',
     warn: 'text-warn',
     bad: 'text-bad',
@@ -27,13 +27,13 @@ export function StatCard({
     <div className="card card-pad">
       <div className="flex items-center justify-between">
         <span className="label">{label}</span>
-        {icon && <Icon name={icon} className="h-4 w-4 text-slate-500" />}
+        {icon && <Icon name={icon} className="h-4 w-4 text-muted" />}
       </div>
       <div className="mt-2 flex items-baseline gap-1.5">
         <span className={`text-2xl font-semibold tabular-nums ${toneText[tone]}`}>{value}</span>
-        {unit && <span className="text-sm text-slate-500">{unit}</span>}
+        {unit && <span className="text-sm text-muted">{unit}</span>}
       </div>
-      {sub && <p className="mt-1 text-xs text-slate-500">{sub}</p>}
+      {sub && <p className="mt-1 text-xs text-muted">{sub}</p>}
     </div>
   );
 }

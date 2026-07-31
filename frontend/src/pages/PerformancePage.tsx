@@ -142,9 +142,9 @@ export default function PerformancePage() {
           <h3 className="label mb-3">Detailed metrics snapshot</h3>
           <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
             {Object.entries(latest.metrics).map(([k, v]) => (
-              <div key={k} className="flex justify-between border-b border-surface-800 py-1">
-                <span className="text-slate-500">{k}</span>
-                <span className="font-mono text-slate-200">{typeof v === 'number' ? v.toFixed(2) : String(v)}</span>
+              <div key={k} className="flex justify-between border-b border-subtle py-1">
+                <span className="text-muted">{k}</span>
+                <span className="font-mono text-primary">{typeof v === 'number' ? v.toFixed(2) : String(v)}</span>
               </div>
             ))}
           </div>

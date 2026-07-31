@@ -16,6 +16,12 @@ import SettingsPage from './pages/SettingsPage';
 import MultimodalAssistantPage from './pages/MultimodalAssistantPage';
 import ArchitecturePage from './pages/ArchitecturePage';
 import ResearchNotesPage from './pages/ResearchNotesPage';
+import OverviewPage from './pages/lab/OverviewPage';
+import RunBenchmarkPage from './pages/lab/RunBenchmarkPage';
+import ResultsPage from './pages/lab/ResultsPage';
+import RunDetailPage from './pages/lab/RunDetailPage';
+import LabModelsPage from './pages/lab/LabModelsPage';
+import SystemPage from './pages/lab/SystemPage';
 import {
   TemporalSceneAnalysisPage,
   WorldModelLabPage,
@@ -55,9 +61,9 @@ export default function App() {
   }, [location.pathname]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface-950">
+    <div className="flex h-screen overflow-hidden bg-canvas">
       {/* Desktop sidebar */}
-      <aside className="hidden w-64 shrink-0 border-r border-surface-800 lg:block">
+      <aside className="hidden w-64 shrink-0 border-r border-subtle lg:block">
         <Sidebar />
       </aside>
 
@@ -69,7 +75,7 @@ export default function App() {
             onClick={() => setMobileNavOpen(false)}
             aria-hidden="true"
           />
-          <div className="absolute left-0 top-0 h-full w-72 border-r border-surface-800 shadow-xl">
+          <div className="absolute left-0 top-0 h-full w-72 border-r border-subtle shadow-xl">
             <button
               className="btn-ghost absolute right-2 top-2 z-10 px-2 py-2"
               onClick={() => setMobileNavOpen(false)}
@@ -87,7 +93,16 @@ export default function App() {
         <main className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-6xl pb-16">
             <Routes>
-              <Route path="/" element={<LiveInferencePage />} />
+              {/* InferenceLab: benchmarking is now the primary surface. */}
+              <Route path="/" element={<OverviewPage />} />
+              <Route path="/lab/run" element={<RunBenchmarkPage />} />
+              <Route path="/lab/results" element={<ResultsPage />} />
+              <Route path="/lab/results/:runId" element={<RunDetailPage />} />
+              <Route path="/lab/models" element={<LabModelsPage />} />
+              <Route path="/lab/system" element={<SystemPage />} />
+
+              {/* Vision slice, preserved from VisionEdge Lab. */}
+              <Route path="/live" element={<LiveInferencePage />} />
               <Route path="/models" element={<ModelSelectorPage />} />
               <Route path="/classes" element={<ClassSelectorPage />} />
               <Route path="/assistant" element={<MultimodalAssistantPage />} />
@@ -110,7 +125,7 @@ export default function App() {
               <Route path="/model-comparison" element={<ModelComparisonPage />} />
               <Route path="/optimization" element={<OptimizationAdvisorPage />} />
 
-              <Route path="*" element={<LiveInferencePage />} />
+              <Route path="*" element={<OverviewPage />} />
             </Routes>
           </div>
         </main>

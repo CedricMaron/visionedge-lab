@@ -19,8 +19,8 @@ function Toggle({
   return (
     <label className="flex cursor-pointer items-start justify-between gap-4">
       <span>
-        <span className="text-sm font-medium text-slate-200">{label}</span>
-        {hint && <span className="mt-0.5 block text-xs text-slate-500">{hint}</span>}
+        <span className="text-sm font-medium text-primary">{label}</span>
+        {hint && <span className="mt-0.5 block text-xs text-muted">{hint}</span>}
       </span>
       <button
         type="button"
@@ -28,7 +28,7 @@ function Toggle({
         aria-checked={checked}
         onClick={() => onChange(!checked)}
         className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition ${
-          checked ? 'bg-accent' : 'bg-surface-700'
+          checked ? 'bg-accent' : 'bg-elevated'
         }`}
       >
         <span
@@ -42,6 +42,8 @@ function Toggle({
 }
 
 export default function SettingsPage() {
+  const theme = useSettingsStore((st) => st.theme);
+  const setTheme = useSettingsStore((st) => st.setTheme);
   const s = useSettingsStore();
   const [apiBaseInput, setApiBaseInput] = useState(s.apiBase);
   const [testState, setTestState] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
@@ -74,7 +76,7 @@ export default function SettingsPage() {
 
       <div className="mx-auto max-w-2xl space-y-4">
         <div className="card card-pad space-y-3">
-          <h2 className="text-sm font-semibold text-slate-200">Backend connection</h2>
+          <h2 className="text-sm font-semibold text-primary">Backend connection</h2>
           <Field label="API base URL" hint={`Default: ${getDefaultApiBase()} · WebSocket URL is derived automatically.`}>
             <input
               className="input font-mono"
@@ -106,7 +108,7 @@ export default function SettingsPage() {
         </div>
 
         <div className="card card-pad space-y-4">
-          <h2 className="text-sm font-semibold text-slate-200">Detector defaults</h2>
+          <h2 className="text-sm font-semibold text-primary">Detector defaults</h2>
           <div className="grid grid-cols-2 gap-3">
             <Field label={`Default confidence (${s.defaultConfidence.toFixed(2)})`}>
               <input
@@ -134,7 +136,7 @@ export default function SettingsPage() {
         </div>
 
         <div className="card card-pad space-y-4">
-          <h2 className="text-sm font-semibold text-slate-200">Multimodal assistant (VLM)</h2>
+          <h2 className="text-sm font-semibold text-primary">Multimodal assistant (VLM)</h2>
           <Toggle
             label="Detector-grounding by default"
             hint="Pass detected objects to the VLM as grounding context when analysing images."
@@ -150,11 +152,27 @@ export default function SettingsPage() {
         </div>
 
         <div className="card card-pad">
-          <h2 className="text-sm font-semibold text-slate-200">Theme</h2>
-          <p className="mt-1 text-sm text-slate-400">
-            VisionEdge Lab ships a single dark, high-contrast technical theme tuned for control-room
-            and field use. A light theme is not part of this build.
+          <h2 className="text-sm font-semibold text-primary">Theme</h2>
+          <p className="mt-1 text-sm text-secondary">
+            InferenceLab defaults to a light, low-chrome theme. Both themes are built from the
+            same semantic tokens and both are contrast-checked against WCAG AA.
           </p>
+          <div className="mt-3 flex gap-2">
+            {(['light', 'dark'] as const).map((option) => (
+              <button
+                key={option}
+                onClick={() => setTheme(option)}
+                aria-pressed={theme === option}
+                className={`btn ${
+                  theme === option
+                    ? 'bg-accent text-accent-contrast'
+                    : 'border border-subtle bg-panel text-secondary hover:border-strong'
+                }`}
+              >
+                {option === 'light' ? 'Light' : 'Dark'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

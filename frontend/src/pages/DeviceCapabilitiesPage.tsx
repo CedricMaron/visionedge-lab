@@ -9,10 +9,10 @@ import type { Capabilities } from '@/types';
 
 function CapRow({ label, ok, value }: { label: string; ok?: boolean; value?: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-surface-800 py-2 last:border-0">
-      <span className="text-sm text-slate-400">{label}</span>
+    <div className="flex items-center justify-between gap-3 border-b border-subtle py-2 last:border-0">
+      <span className="text-sm text-secondary">{label}</span>
       <span className="flex items-center gap-2 text-sm">
-        {value !== undefined && <span className="font-mono text-slate-200">{value}</span>}
+        {value !== undefined && <span className="font-mono text-primary">{value}</span>}
         {ok !== undefined && (
           <span className={`pill ${ok ? 'bg-good/15 text-good' : 'bg-bad/15 text-bad'}`}>
             {ok ? 'available' : 'unavailable'}
@@ -26,7 +26,7 @@ function CapRow({ label, ok, value }: { label: string; ok?: boolean; value?: str
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="card card-pad">
-      <h2 className="mb-2 text-sm font-semibold text-slate-200">{title}</h2>
+      <h2 className="mb-2 text-sm font-semibold text-primary">{title}</h2>
       {children}
     </div>
   );
@@ -85,11 +85,11 @@ export default function DeviceCapabilitiesPage() {
 
               <Section title="GPU">
                 <CapRow label="NVIDIA GPU present" ok={data.nvidia_gpu_present} />
-                {data.gpus.length === 0 && <p className="py-1 text-sm text-slate-500">No GPUs reported.</p>}
+                {data.gpus.length === 0 && <p className="py-1 text-sm text-muted">No GPUs reported.</p>}
                 {data.gpus.map((g, i) => (
-                  <div key={i} className="border-b border-surface-800 py-2 last:border-0">
-                    <div className="text-sm text-slate-200">{g.name}</div>
-                    <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
+                  <div key={i} className="border-b border-subtle py-2 last:border-0">
+                    <div className="text-sm text-primary">{g.name}</div>
+                    <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted">
                       <span>mem {formatMb(g.memory_used_mb)} / {formatMb(g.memory_total_mb)}</span>
                       <span>driver {g.driver_version}</span>
                     </div>
@@ -173,7 +173,7 @@ export default function DeviceCapabilitiesPage() {
               {cameras.length > 0 && (
                 <Section title="Cameras">
                   {cameras.map((c) => (
-                    <div key={c.deviceId} className="py-1 text-sm text-slate-300">
+                    <div key={c.deviceId} className="py-1 text-sm text-secondary">
                       {c.label}
                     </div>
                   ))}

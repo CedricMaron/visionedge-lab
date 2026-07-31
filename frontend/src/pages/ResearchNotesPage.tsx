@@ -3,8 +3,8 @@ import { PageHeader } from '@/components/ui';
 function Note({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="card card-pad">
-      <h2 className="mb-2 text-sm font-semibold text-slate-200">{title}</h2>
-      <div className="space-y-2 text-sm leading-relaxed text-slate-400">{children}</div>
+      <h2 className="mb-2 text-sm font-semibold text-primary">{title}</h2>
+      <div className="space-y-2 text-sm leading-relaxed text-secondary">{children}</div>
     </div>
   );
 }

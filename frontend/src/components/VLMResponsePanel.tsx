@@ -13,7 +13,7 @@ export function VLMResponsePanel({ response }: { response: VLMResponse }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <span className="pill bg-accent/15 text-accent">{response.model_id}</span>
-        <span className="pill bg-surface-700 text-slate-300">{response.runtime}</span>
+        <span className="pill bg-elevated text-secondary">{response.runtime}</span>
         <span
           className={`pill ${local ? 'bg-good/15 text-good' : 'bg-warn/15 text-warn'}`}
           title="Where the model executed"
@@ -25,7 +25,7 @@ export function VLMResponsePanel({ response }: { response: VLMResponse }) {
 
       <div className="card card-pad">
         <h3 className="label mb-2">Response</h3>
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-200">
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-primary">
           {response.text || '(no text returned)'}
         </p>
       </div>
@@ -33,7 +33,7 @@ export function VLMResponsePanel({ response }: { response: VLMResponse }) {
       {response.structured_output && (
         <div className="card card-pad">
           <h3 className="label mb-2">Structured output</h3>
-          <pre className="overflow-x-auto rounded-lg bg-surface-950 p-3 text-xs text-slate-300">
+          <pre className="overflow-x-auto rounded-lg bg-canvas p-3 text-xs text-secondary">
             {JSON.stringify(response.structured_output, null, 2)}
           </pre>
         </div>
@@ -51,7 +51,7 @@ export function VLMResponsePanel({ response }: { response: VLMResponse }) {
       {response.warnings.length > 0 && (
         <div className="card card-pad border-warn/30 bg-warn/5">
           <h3 className="label mb-1 text-warn">Warnings</h3>
-          <ul className="list-inside list-disc text-sm text-slate-300">
+          <ul className="list-inside list-disc text-sm text-secondary">
             {response.warnings.map((w, i) => (
               <li key={i}>{w}</li>
             ))}

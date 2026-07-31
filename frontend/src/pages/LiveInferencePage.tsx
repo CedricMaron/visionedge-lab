@@ -310,7 +310,7 @@ export default function LiveInferencePage() {
               className="absolute inset-0 h-full w-full object-contain"
             />
             {!running && sourceMode === 'camera' && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-500">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted">
                 <Icon name="camera" className="h-8 w-8" />
                 <span className="text-sm">Press Start to begin streaming</span>
               </div>
@@ -390,7 +390,7 @@ export default function LiveInferencePage() {
         <aside className="space-y-4">
           <div className="card card-pad space-y-3">
             <h2 className="label">Source</h2>
-            <div className="flex gap-1 rounded-lg bg-surface-900 p-1 text-xs">
+            <div className="flex gap-1 rounded-lg bg-elevated p-1 text-xs">
               {(['camera', 'video', 'image'] as SourceMode[]).map((m) => (
                 <button
                   key={m}
@@ -399,7 +399,7 @@ export default function LiveInferencePage() {
                     setSourceMode(m);
                   }}
                   className={`flex-1 rounded-md px-2 py-1.5 capitalize transition ${
-                    sourceMode === m ? 'bg-accent text-surface-950' : 'text-slate-400 hover:text-slate-200'
+                    sourceMode === m ? 'bg-accent text-accent-contrast' : 'text-secondary hover:text-primary'
                   }`}
                 >
                   {m}
@@ -447,21 +447,21 @@ export default function LiveInferencePage() {
                   onClick={() => applyPreset(p)}
                   className={`rounded-lg border px-3 py-2 text-left text-sm transition ${
                     preset.key === p.key
-                      ? 'border-accent/50 bg-accent/10 text-slate-100'
-                      : 'border-surface-700 bg-surface-900 text-slate-300 hover:border-surface-600'
+                      ? 'border-accent/50 bg-accent/10 text-primary'
+                      : 'border-subtle bg-elevated text-secondary hover:border-strong'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{p.label}</span>
-                    <span className="font-mono text-[11px] text-slate-500">
+                    <span className="font-mono text-[11px] text-muted">
                       {p.inputSize}px · {p.targetFps}fps
                     </span>
                   </div>
-                  <div className="text-[11px] text-slate-500">{p.description}</div>
+                  <div className="text-[11px] text-muted">{p.description}</div>
                 </button>
               ))}
             </div>
-            {presetMsg && <p className="text-xs text-slate-400">{presetMsg}</p>}
+            {presetMsg && <p className="text-xs text-secondary">{presetMsg}</p>}
           </div>
 
           <div className="card card-pad space-y-2 text-sm">
@@ -478,15 +478,15 @@ export default function LiveInferencePage() {
               tone={health === 'healthy' || health === 'ok' ? 'good' : health === 'unreachable' ? 'bad' : 'warn'}
             />
             <div className="flex items-center justify-between">
-              <span className="text-slate-500">Classes</span>
-              <span className="text-slate-300">
+              <span className="text-muted">Classes</span>
+              <span className="text-secondary">
                 {selectedIds.length === classes.length || classes.length === 0
                   ? 'all'
                   : `${selectedIds.length} selected`}
               </span>
             </div>
             {activeClassNames.length > 0 && activeClassNames.length < classes.length && (
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-muted">
                 {activeClassNames.slice(0, 8).join(', ')}
                 {activeClassNames.length > 8 ? ` +${activeClassNames.length - 8} more` : ''}
               </p>
@@ -500,10 +500,10 @@ export default function LiveInferencePage() {
 
 function Row({ label, value, tone }: { label: string; value: string; tone?: string }) {
   const toneCls =
-    tone === 'good' ? 'text-good' : tone === 'bad' ? 'text-bad' : tone === 'warn' ? 'text-warn' : 'text-slate-300';
+    tone === 'good' ? 'text-good' : tone === 'bad' ? 'text-bad' : tone === 'warn' ? 'text-warn' : 'text-secondary';
   return (
     <div className="flex items-center justify-between">
-      <span className="text-slate-500">{label}</span>
+      <span className="text-muted">{label}</span>
       <span className={`font-mono text-xs ${toneCls}`}>{value}</span>
     </div>
   );

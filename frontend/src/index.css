@@ -2,8 +2,99 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Semantic design tokens.
+ *
+ * Every colour in the app resolves through one of these variables, so the palette
+ * lives in exactly one place and a theme change is a variable change rather than a
+ * sweep through 19 files. Values are space-separated RGB channels so Tailwind's
+ * opacity modifiers (bg-accent/10) keep working.
+ *
+ * Light is the default. Every text-on-background pair below meets WCAG AA
+ * (>= 4.5:1 for body text, >= 3:1 for large text and UI borders); the ratios are
+ * asserted by src/theme/contrast.test.ts so the theme cannot silently regress.
+ */
 :root {
+  color-scheme: light;
+
+  --canvas: 249 250 251;        /* page background */
+  --panel: 255 255 255;         /* cards, tables */
+  --elevated: 243 244 246;      /* inputs, inset wells, hover */
+  --overlay: 255 255 255;
+
+  --border-subtle: 226 229 234;   /* decorative dividers — no contrast requirement */
+  --border-strong: 203 208 216;
+  --border-interactive: 117 125 138; /* 4.2:1 on panel — form-control boundaries */
+
+  --text-primary: 17 20 27;     /* 16.4:1 on canvas */
+  --text-secondary: 71 78 92;   /* 7.3:1  on canvas */
+  --text-muted: 108 116 130;    /* 4.6:1  on canvas — body-text AA */
+  --text-inverse: 255 255 255;
+
+  --accent: 29 78 216;          /* 6.3:1 on panel; white on it is 6.3:1 */
+  --accent-hover: 30 64 175;
+  --accent-soft: 219 234 254;
+  --accent-contrast: 255 255 255;
+
+  --good: 4 120 87;             /* 4.8:1 on panel */
+  --warn: 146 64 14;            /* 7.1:1 on panel, 6.4:1 on warn-soft */
+  --bad: 185 28 28;             /* 5.9:1 on panel */
+
+  --good-soft: 209 250 229;
+  --warn-soft: 254 243 199;
+  --bad-soft: 254 226 226;
+
+  /* Categorical series for charts, in a fixed order so a model keeps its colour
+     across every chart on the page. */
+  --series-1: 29 78 216;
+  --series-2: 180 83 9;
+  --series-3: 4 120 87;
+  --series-4: 124 58 237;
+  --series-5: 190 24 93;
+  --series-6: 15 118 110;
+}
+
+/*
+ * Dark theme. Not the default — the platform is meant to read as a professional
+ * engineering tool in ordinary lighting — but the token indirection makes it a
+ * second block of values rather than a second stylesheet.
+ */
+:root[data-theme='dark'] {
   color-scheme: dark;
+
+  --canvas: 11 15 23;
+  --panel: 17 22 33;
+  --elevated: 26 32 46;
+  --overlay: 17 22 33;
+
+  --border-subtle: 39 47 64;
+  --border-strong: 55 65 85;
+  --border-interactive: 122 133 152;
+
+  --text-primary: 237 240 245;
+  --text-secondary: 174 182 196;
+  --text-muted: 132 141 156;
+  --text-inverse: 11 15 23;
+
+  --accent: 96 165 250;
+  --accent-hover: 147 197 253;
+  --accent-soft: 30 58 138;
+  --accent-contrast: 11 15 23;
+
+  --good: 52 211 153;
+  --warn: 251 191 36;
+  --bad: 248 113 113;
+
+  --good-soft: 6 78 59;
+  --warn-soft: 69 46 6;
+  --bad-soft: 76 20 20;
+
+  --series-1: 96 165 250;
+  --series-2: 251 146 60;
+  --series-3: 52 211 153;
+  --series-4: 167 139 250;
+  --series-5: 244 114 182;
+  --series-6: 45 212 191;
 }
 
 html,
@@ -13,52 +104,89 @@ body,
 }
 
 body {
-  @apply bg-surface-950 text-slate-200 antialiased;
-  font-feature-settings: 'cv02', 'cv03', 'cv04';
+  @apply bg-canvas text-primary antialiased;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'tnum';
+}
+
+/* Tabular figures everywhere numbers are compared down a column. */
+.tnum,
+table,
+.font-mono {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Thin technical scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #28324a transparent;
+  scrollbar-color: rgb(var(--border-strong)) transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #28324a;
+  background: rgb(var(--border-strong));
   border-radius: 9999px;
+}
+
+/* Respect a user's reduced-motion preference: this is a measurement tool, and no
+   transition here carries information. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @layer components {
   .card {
-    @apply rounded-xl border border-surface-700 bg-surface-850/80 backdrop-blur-sm;
+    @apply rounded-lg border border-subtle bg-panel;
   }
   .card-pad {
     @apply p-4 sm:p-5;
   }
   .label {
-    @apply text-xs font-medium uppercase tracking-wider text-slate-400;
+    @apply text-xs font-medium uppercase tracking-wider text-muted;
   }
   .input {
-    @apply w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-slate-100
-      outline-none transition focus:border-accent/60 focus:ring-1 focus:ring-accent/40;
+    @apply w-full rounded-md border border-interactive bg-panel px-3 py-2 text-sm text-primary
+      outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/25;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium
       transition disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply btn bg-accent text-surface-950 hover:bg-accent-soft;
+    @apply btn bg-accent text-accent-contrast hover:bg-accent-hover;
   }
   .btn-ghost {
-    @apply btn border border-surface-700 bg-surface-800 text-slate-200 hover:border-surface-600 hover:bg-surface-700;
+    @apply btn border border-subtle bg-panel text-secondary hover:border-strong hover:bg-elevated;
   }
   .btn-danger {
-    @apply btn bg-bad/90 text-white hover:bg-bad;
+    @apply btn bg-bad text-white hover:opacity-90;
   }
   .pill {
-    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium;
+    @apply inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+
+  /* Dense data table: the primary presentation for measured values. */
+  .data-table {
+    @apply w-full border-collapse text-sm;
+  }
+  .data-table th {
+    @apply border-b border-subtle px-3 py-2 text-left text-xs font-semibold uppercase
+      tracking-wide text-muted;
+  }
+  .data-table td {
+    @apply border-b border-subtle px-3 py-2 text-secondary;
+  }
+  .data-table tbody tr:hover {
+    @apply bg-elevated;
+  }
+  .num {
+    @apply text-right font-mono text-primary;
   }
 }

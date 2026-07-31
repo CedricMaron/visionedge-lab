@@ -28,7 +28,7 @@ export function BenchmarkJobStatus({ job }: { job: JobRecord | null }) {
   }
   if (job.state === 'running' || job.state === 'queued') {
     return (
-      <p className="mt-2 text-sm text-slate-400">
+      <p className="mt-2 text-sm text-secondary">
         Benchmarking this model in the background… {job.current_step} / {job.total_steps} runs
       </p>
     );
@@ -139,19 +139,19 @@ export default function ModelSelectorPage() {
               />
             ))}
             {models.length === 0 && (
-              <p className="text-sm text-slate-500">No detection models reported.</p>
+              <p className="text-sm text-muted">No detection models reported.</p>
             )}
           </div>
 
           {/* Config panel */}
           <aside className="lg:sticky lg:top-4 lg:self-start">
             <div className="card card-pad space-y-4">
-              <h2 className="text-sm font-semibold text-slate-200">Switch configuration</h2>
+              <h2 className="text-sm font-semibold text-primary">Switch configuration</h2>
               {selected ? (
                 <>
-                  <div className="rounded-lg bg-surface-900 px-3 py-2 text-xs">
-                    <div className="text-slate-400">Model family / size / version</div>
-                    <div className="mt-0.5 font-mono text-slate-200">
+                  <div className="rounded-lg bg-elevated px-3 py-2 text-xs">
+                    <div className="text-secondary">Model family / size / version</div>
+                    <div className="mt-0.5 font-mono text-primary">
                       {selected.family} · {selected.size} · {selected.version}
                     </div>
                   </div>
@@ -237,7 +237,7 @@ export default function ModelSelectorPage() {
                     </Field>
                   </div>
 
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted">
                     Applies to {selectedIds.length} allowed class{selectedIds.length === 1 ? '' : 'es'}{' '}
                     (from Class Selector).
                   </p>
@@ -245,7 +245,7 @@ export default function ModelSelectorPage() {
                   <button className="btn-primary w-full" disabled={status === 'loading'} onClick={onApply}>
                     {status === 'loading' ? (
                       <>
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-surface-950/40 border-t-surface-950" />
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-accent-contrast border-t-accent-contrast" />
                         Applying…
                       </>
                     ) : (
@@ -272,7 +272,7 @@ export default function ModelSelectorPage() {
                   <BenchmarkJobStatus job={benchmarkJob} />
                 </>
               ) : (
-                <p className="text-sm text-slate-500">Select a model to configure.</p>
+                <p className="text-sm text-muted">Select a model to configure.</p>
               )}
             </div>
           </aside>

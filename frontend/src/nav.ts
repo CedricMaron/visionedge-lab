@@ -14,20 +14,30 @@ export interface NavSection {
 
 export const NAV: NavSection[] = [
   {
-    title: 'Perception',
+    title: 'Benchmark',
     items: [
-      { path: '/', label: 'Live Inference', icon: 'live', status: 'live' },
-      { path: '/models', label: 'Model Selector', icon: 'layers', status: 'live' },
-      { path: '/classes', label: 'Class Selector', icon: 'tag', status: 'live' },
-      { path: '/assistant', label: 'Multimodal Assistant', icon: 'sparkles', status: 'live' },
+      { path: '/', label: 'Overview', icon: 'gauge', status: 'live' },
+      { path: '/lab/run', label: 'Run Benchmark', icon: 'flask', status: 'live' },
+      { path: '/lab/results', label: 'Results', icon: 'chart', status: 'live' },
     ],
   },
   {
-    title: 'Telemetry',
+    title: 'Environment',
     items: [
-      { path: '/capabilities', label: 'Device Capabilities', icon: 'chip', status: 'live' },
-      { path: '/performance', label: 'Performance', icon: 'chart', status: 'live' },
-      { path: '/benchmarks', label: 'Benchmarks', icon: 'gauge', status: 'live' },
+      { path: '/lab/models', label: 'Models', icon: 'layers', status: 'live' },
+      { path: '/lab/system', label: 'System', icon: 'chip', status: 'live' },
+      { path: '/capabilities', label: 'Device Capabilities', icon: 'server', status: 'live' },
+    ],
+  },
+  {
+    title: 'Vision',
+    items: [
+      { path: '/live', label: 'Live Inference', icon: 'live', status: 'live' },
+      { path: '/models', label: 'Detection Models', icon: 'grid', status: 'live' },
+      { path: '/classes', label: 'Class Selector', icon: 'tag', status: 'live' },
+      { path: '/assistant', label: 'Multimodal Assistant', icon: 'sparkles', status: 'live' },
+      { path: '/performance', label: 'Live Performance', icon: 'clock', status: 'live' },
+      { path: '/benchmarks', label: 'Legacy Benchmarks', icon: 'scale', status: 'live' },
     ],
   },
   {
@@ -39,12 +49,6 @@ export const NAV: NavSection[] = [
       { path: '/embeddings', label: 'Embedding Explorer', icon: 'grid', status: 'planned' },
       { path: '/anomaly', label: 'Anomaly Detection', icon: 'alert', status: 'planned' },
       { path: '/cross-modal', label: 'Cross-Modal Search', icon: 'search', status: 'planned' },
-      {
-        path: '/multimodal-benchmarks',
-        label: 'Multimodal Benchmarks',
-        icon: 'gauge',
-        status: 'planned',
-      },
     ],
   },
   {
@@ -52,13 +56,7 @@ export const NAV: NavSection[] = [
     items: [
       { path: '/servers', label: 'Server Connections', icon: 'server', status: 'planned' },
       { path: '/logs', label: 'Logs', icon: 'terminal', status: 'planned' },
-      { path: '/model-comparison', label: 'Model Comparison', icon: 'scale', status: 'planned' },
-      {
-        path: '/optimization',
-        label: 'Optimization Advisor',
-        icon: 'wand',
-        status: 'planned',
-      },
+      { path: '/optimization', label: 'Optimization Advisor', icon: 'wand', status: 'planned' },
     ],
   },
   {

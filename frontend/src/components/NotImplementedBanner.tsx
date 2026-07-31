@@ -21,10 +21,10 @@ export function NotImplementedBanner({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="pill bg-warn/15 text-warn">Planned — {phase}</span>
-            <span className="text-sm font-medium text-slate-200">Not yet implemented in this build</span>
+            <span className="text-sm font-medium text-primary">Not yet implemented in this build</span>
           </div>
-          <p className="mt-2 max-w-2xl text-sm text-slate-400">{description}</p>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 max-w-2xl text-sm text-secondary">{description}</p>
+          <p className="mt-2 text-xs text-muted">
             This screen is an honest shell: no simulated data, metrics, or charts are shown. The UI
             will light up when the backend slice ships.
           </p>
@@ -59,7 +59,7 @@ export function PlannedPage({
           <h2 className="label mb-3">Planned capabilities</h2>
           <ul className="space-y-2">
             {plannedFeatures.map((f) => (
-              <li key={f} className="flex items-start gap-2 text-sm text-slate-300">
+              <li key={f} className="flex items-start gap-2 text-sm text-secondary">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent/70" />
                 {f}
               </li>

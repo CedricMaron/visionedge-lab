@@ -121,13 +121,13 @@ export default function MultimodalAssistantPage() {
           <div className="card card-pad space-y-3">
             <h2 className="label">Image</h2>
             <div
-              className="flex aspect-video cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-surface-600 bg-surface-900"
+              className="flex aspect-video cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-strong bg-elevated"
               onClick={() => fileInput.current?.click()}
             >
               {previewUrl ? (
                 <img src={previewUrl} alt="input" className="h-full w-full object-contain" />
               ) : (
-                <div className="text-center text-sm text-slate-500">
+                <div className="text-center text-sm text-muted">
                   <Icon name="camera" className="mx-auto mb-2 h-6 w-6" />
                   Click to upload an image
                 </div>
@@ -162,7 +162,7 @@ export default function MultimodalAssistantPage() {
               />
             </Field>
 
-            <label className="flex items-center gap-2 text-sm text-slate-300">
+            <label className="flex items-center gap-2 text-sm text-secondary">
               <input type="checkbox" className="accent-accent" checked={ground} onChange={(e) => setGround(e.target.checked)} />
               Detector-grounding (pass detected objects as context)
             </label>

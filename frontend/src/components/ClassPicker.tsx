@@ -64,13 +64,13 @@ export function ClassPicker({ compact = false }: { compact?: boolean }) {
             {p.label}
           </button>
         ))}
-        <span className="ml-auto text-xs text-slate-500">
+        <span className="ml-auto text-xs text-muted">
           {selectedIds.length} / {classes.length} selected
         </span>
       </div>
 
       <div className="relative">
-        <Icon name="search" className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+        <Icon name="search" className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted" />
         <input
           className="input pl-9"
           placeholder="Search 80 COCO classes…"
@@ -92,8 +92,8 @@ export function ClassPicker({ compact = false }: { compact?: boolean }) {
               key={c.id}
               className={`flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm transition ${
                 on
-                  ? 'border-accent/40 bg-accent/10 text-slate-100'
-                  : 'border-surface-700 bg-surface-900 text-slate-400 hover:border-surface-600'
+                  ? 'border-accent/40 bg-accent/10 text-primary'
+                  : 'border-subtle bg-elevated text-secondary hover:border-strong'
               }`}
             >
               <input
@@ -108,7 +108,7 @@ export function ClassPicker({ compact = false }: { compact?: boolean }) {
           );
         })}
         {filtered.length === 0 && (
-          <p className="col-span-full py-6 text-center text-sm text-slate-500">
+          <p className="col-span-full py-6 text-center text-sm text-muted">
             No classes match "{query}".
           </p>
         )}
