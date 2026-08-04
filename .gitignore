@@ -8,11 +8,18 @@ __pycache__/
 frontend/node_modules/
 frontend/dist/
 # models & data (large / regenerable)
-models/*.onnx
-models/*.pt
-models/*.engine
-models/*.xml
-models/*.bin
+# `**/` matters: `models/*.onnx` only matches the top level, so weights placed in
+# models/classification/ or models/embedding/ were tracked by accident. Small
+# companion files (config.json, tokenizer.json) stay tracked deliberately — they
+# are configuration, they total well under a megabyte, and keeping them means a
+# deploy only has to fetch the weights.
+models/**/*.onnx
+models/**/*.pt
+models/**/*.engine
+models/**/*.xml
+models/**/*.bin
+models/**/*.safetensors
+models/**/*.gguf
 benchmark-data/*.jpg
 benchmark-data/*.png
 benchmark-data/*.mp4
@@ -21,7 +28,7 @@ calibration/*
 !calibration/.gitkeep
 # os
 .DS_Store
-models/*.onnx.json
+models/**/*.onnx.json
 
 # Profiler traces (large, regenerable)
 benchmarks/results/traces/
