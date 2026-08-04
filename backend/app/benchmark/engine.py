@@ -36,6 +36,7 @@ import time
 from dataclasses import dataclass, field
 
 from app.adapters.base import InferenceRequest, LoadConfig, ModelAdapter
+from app.benchmark.artifacts import capture_ort_profile
 from app.benchmark.throughput import build_throughput
 from app.core.logging import get_logger
 from app.instrumentation.energy import integrate_energy
@@ -50,6 +51,7 @@ from app.instrumentation.probes.system import SystemProbe
 from app.instrumentation.sampler import INTERVAL_MS_BY_MODE, HardwareSampler, SamplingDetail
 from app.instrumentation.timeline import Timeline
 from app.schemas.enums import (
+    BenchmarkMode,
     ExecutionLocation,
     IterationPhaseGroup,
     Phase,
@@ -57,7 +59,14 @@ from app.schemas.enums import (
     Task,
 )
 from app.schemas.environment import EnvironmentFingerprint, ModelReference, RuntimeReference
-from app.schemas.run import BenchmarkRun, ColdWarmSplit, IterationFailure, RunErrors, RunIdentity
+from app.schemas.run import (
+    BenchmarkRun,
+    ColdWarmSplit,
+    IterationFailure,
+    ProfilerArtifact,
+    RunErrors,
+    RunIdentity,
+)
 from app.schemas.scenario import ScenarioSpec
 from app.schemas.timing import IterationSample, PhaseBreakdown
 
@@ -102,6 +111,8 @@ class BenchmarkEngine:
         cancel: threading.Event | None = None,
     ) -> BenchmarkRun:
         cancel = cancel or threading.Event()
+        # Created up front so profiler artifacts can be filed under the run id.
+        identity = RunIdentity(label=self.options.label, tags=list(self.options.tags))
         started_wall = time.perf_counter()
         warnings: list[str] = []
 
@@ -125,6 +136,12 @@ class BenchmarkEngine:
 
         try:
             # --- load (cold start) ---
+            # Profiler mode must be requested at session creation: ORT cannot start
+            # profiling on an already-built session.
+            if scenario.mode is BenchmarkMode.PROFILER:
+                load_config.backend_options = {
+                    **load_config.backend_options, "enable_profiling": True,
+                }
             load_result = adapter.load(load_config)
             cold.model_load_ms = load_result.load_ms
             snapshots.append(snapshot("after_load", system, self._gpu, self.options.gpu_index))
@@ -213,6 +230,19 @@ class BenchmarkEngine:
 
         snapshots.append(snapshot("after_run", system, self._gpu, self.options.gpu_index))
 
+        # Flush the profiler before the caller unloads the adapter — the session must
+        # still exist for ORT to write its trace.
+        artifacts: list[ProfilerArtifact] = []
+        if scenario.mode is BenchmarkMode.PROFILER:
+            artifact = capture_ort_profile(adapter, identity.run_id)
+            if artifact is not None:
+                artifacts.append(artifact)
+            else:
+                warnings.append(
+                    "profiler mode was requested but no profiler artifact was produced; "
+                    "the runtime may not support profiling"
+                )
+
         if scenario.cooldown_seconds > 0:
             time.sleep(scenario.cooldown_seconds)
 
@@ -271,7 +301,7 @@ class BenchmarkEngine:
         thermal = self._thermal_state(system, gpu_temp_start, throttling_start)
 
         return BenchmarkRun(
-            identity=RunIdentity(label=self.options.label, tags=list(self.options.tags)),
+            identity=identity,
             status=status,
             scenario=scenario,
             model=model_ref,
@@ -301,6 +331,7 @@ class BenchmarkEngine:
             iterations=iterations,
             errors=RunErrors(failures=failures, statistics_exclude_failures=True),
             warnings=warnings,
+            artifacts=artifacts,
             instrumentation_overhead_ms=(
                 series.sampler_overhead_ms.value if series.sampler_overhead_ms.available else None
             ),

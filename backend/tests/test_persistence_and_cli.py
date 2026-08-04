@@ -229,3 +229,63 @@ class TestCli:
             build_parser().parse_args([
                 "benchmark", "run", "--scenario", "x", "--model", "y", "--device", "quantum",
             ])
+
+
+class TestProfilerArtifacts:
+    """Artifacts are referenced, not embedded, and their paths cannot be escaped."""
+
+    def test_valid_run_id_resolves(self, tmp_path, monkeypatch):
+        from app.benchmark import artifacts
+
+        monkeypatch.setattr(artifacts, "ARTIFACT_ROOT", tmp_path)
+        path = artifacts.resolve_artifact_path("run_abc123", "onnxruntime_profile.json")
+        assert path.name == "onnxruntime_profile.json"
+
+    @pytest.mark.parametrize(
+        "run_id",
+        ["../etc", "run_../..", "", "not-a-run-id", "run_ZZZZ", "run_abc/../../x"],
+    )
+    def test_invalid_run_ids_are_refused(self, run_id):
+        from app.benchmark.artifacts import ArtifactError, artifact_dir
+
+        with pytest.raises(ArtifactError):
+            artifact_dir(run_id)
+
+    @pytest.mark.parametrize(
+        "file_name",
+        ["../../../etc/passwd", "sub/dir.json", "..", ".", "", "a\\b.json"],
+    )
+    def test_traversal_file_names_are_refused(self, file_name):
+        # A path assembled from request input would otherwise be an arbitrary-read.
+        from app.benchmark.artifacts import ArtifactError, resolve_artifact_path
+
+        with pytest.raises(ArtifactError):
+            resolve_artifact_path("run_abc123", file_name)
+
+    def test_listing_a_run_without_artifacts_is_empty(self):
+        from app.benchmark.artifacts import list_artifacts
+
+        assert list_artifacts("run_000000000000") == []
+
+    def test_listing_an_invalid_run_id_is_empty_not_an_error(self):
+        # Listing is a read on a user-supplied id; it must not raise into a handler.
+        from app.benchmark.artifacts import list_artifacts
+
+        assert list_artifacts("../../etc") == []
+
+    def test_capture_returns_none_when_the_runtime_cannot_profile(self):
+        from app.benchmark.artifacts import capture_ort_profile
+
+        class NoProfiling:
+            runtime = object()
+            _handle = object()
+
+        assert capture_ort_profile(NoProfiling(), "run_abc123") is None
+
+    def test_capture_never_raises_when_the_adapter_has_no_session(self):
+        from app.benchmark.artifacts import capture_ort_profile
+
+        class Bare:
+            pass
+
+        assert capture_ort_profile(Bare(), "run_abc123") is None

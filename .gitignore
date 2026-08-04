@@ -22,3 +22,6 @@ calibration/*
 # os
 .DS_Store
 models/*.onnx.json
+
+# Profiler traces (large, regenerable)
+benchmarks/results/traces/

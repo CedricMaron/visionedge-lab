@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from app.adapters.base import LoadConfig
+from app.benchmark.artifacts import ArtifactError, list_artifacts, resolve_artifact_path
 from app.benchmark.engine import BenchmarkEngine, EngineOptions
 from app.benchmark.export import iterations_to_csv, summary_to_csv, to_json, to_markdown
 from app.benchmark.scenarios import load_all
@@ -249,6 +250,30 @@ async def get_run_iterations(run_id: str):
 async def get_run_utilization(run_id: str):
     samples = await run_in_threadpool(_store().utilization, run_id)
     return {"samples": [s.model_dump(mode="json") for s in samples]}
+
+
+@router.get("/runs/{run_id}/artifacts")
+async def get_run_artifacts(run_id: str):
+    """Profiler artifacts for a run. Large files are referenced, never inlined."""
+    return {"artifacts": [a.model_dump() for a in list_artifacts(run_id)]}
+
+
+@router.get("/runs/{run_id}/artifacts/{file_name}")
+async def download_artifact(run_id: str, file_name: str):
+    """Stream one artifact.
+
+    The path is resolved against a validated run id and refused if it escapes the
+    artifact root, so a crafted file name cannot read arbitrary files (§25).
+    """
+    from fastapi.responses import FileResponse
+
+    try:
+        path = resolve_artifact_path(run_id, file_name)
+    except ArtifactError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if not path.exists():
+        raise HTTPException(404, f"no artifact '{file_name}' for run '{run_id}'")
+    return FileResponse(path, media_type="application/json", filename=file_name)
 
 
 @router.get("/runs/{run_id}/export")

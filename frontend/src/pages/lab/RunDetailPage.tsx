@@ -16,6 +16,7 @@ import { LatencyDecomposition } from '@/components/LatencyDecomposition';
 import { MeasurementList } from '@/components/MeasurementValue';
 import { UtilizationChart } from '@/components/UtilizationChart';
 import { IterationTable } from '@/components/IterationTable';
+import { TraceWaterfall } from '@/components/TraceWaterfall';
 import type { BenchmarkRun } from '@/types/lab';
 
 const STATUS_TONE: Record<string, string> = {
@@ -225,6 +226,46 @@ export default function RunDetailPage() {
         >
           <UtilizationChart series={run.utilization} />
         </Panel>
+
+        <Panel
+          title="Trace waterfall"
+          subtitle="Each iteration on a shared time axis — which run was slow, and which phase made it slow."
+        >
+          <TraceWaterfall iterations={run.iterations} />
+        </Panel>
+
+        {run.artifacts.length > 0 && (
+          <Panel
+            title="Profiler artifacts"
+            subtitle="Large traces are stored separately and referenced here, not embedded in the result."
+          >
+            <ul className="space-y-2">
+              {run.artifacts.map((artifact) => (
+                <li
+                  key={artifact.path}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded border border-subtle px-3 py-2"
+                >
+                  <span>
+                    <span className="font-mono text-xs text-primary">{artifact.kind}</span>
+                    <span className="ml-2 text-xs text-muted">
+                      {(artifact.size_bytes / 1024).toFixed(0)} KB
+                    </span>
+                    {artifact.note && (
+                      <span className="mt-0.5 block text-2xs text-muted">{artifact.note}</span>
+                    )}
+                  </span>
+                  <a
+                    className="btn-ghost shrink-0"
+                    href={`${base}/api/lab/runs/${run.identity.run_id}/artifacts/${artifact.path.split('/').pop()}`}
+                    download
+                  >
+                    Download
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        )}
 
         <Panel
           title="Per-iteration samples"

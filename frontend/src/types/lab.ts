@@ -177,6 +177,7 @@ export interface BenchmarkRun {
   memory: MeasurementMap & { snapshots: unknown[] };
   utilization: UtilizationSeries;
   energy: MeasurementMap;
+  artifacts: { kind: string; path: string; size_bytes: number; note: string | null }[];
   iterations: IterationSample[];
   errors: {
     failures: { index: number; error_type: string; error_message: string }[];
