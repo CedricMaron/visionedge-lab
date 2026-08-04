@@ -5,6 +5,11 @@ import { PageHeader, Spinner, ErrorState, Badge } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { formatMb } from '@/utils/format';
 import { detectBrowserCaps, probeCameras, type BrowserCaps } from '@/utils/browserCaps';
+import {
+  detectDeviceClass,
+  deviceClassLabel,
+  type DeviceClassification,
+} from '@/utils/deviceClass';
 import type { Capabilities } from '@/types';
 
 function CapRow({ label, ok, value }: { label: string; ok?: boolean; value?: string }) {
@@ -32,14 +37,79 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+function DeviceClassCard({ classification }: { classification: DeviceClassification }) {
+  const { deviceClass, confidence, evidence } = classification;
+  const tone =
+    deviceClass === 'unknown' ? 'bg-elevated text-muted' : 'bg-accent-soft text-accent';
+
+  return (
+    <div className="card card-pad">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-primary">This device</h2>
+          <p className="mt-0.5 text-xs text-muted">
+            Classified from probed browser APIs. No user-agent string is parsed.
+          </p>
+        </div>
+        <div className="text-right">
+          <span className={`pill text-base ${tone}`}>{deviceClassLabel(deviceClass)}</span>
+          <div className="mt-1 text-xs text-muted">
+            {deviceClass === 'unknown'
+              ? 'signals disagree or are unavailable'
+              : `confidence ${(confidence * 100).toFixed(0)}%`}
+          </div>
+        </div>
+      </div>
+
+      <table className="data-table mt-3">
+        <thead>
+          <tr>
+            <th scope="col">Signal</th>
+            <th scope="col">Value</th>
+            <th scope="col">Weight</th>
+            <th scope="col">Vote</th>
+          </tr>
+        </thead>
+        <tbody>
+          {evidence.map((item) => (
+            <tr key={item.signal} className={item.available ? undefined : 'opacity-60'}>
+              <td className="text-xs">{item.signal}</td>
+              <td className="font-mono text-xs">
+                {item.available ? item.value : <span className="italic text-muted">unavailable</span>}
+              </td>
+              <td className="text-xs">{item.weight}</td>
+              <td className="text-xs">
+                {item.vote === 'none' ? (
+                  <span className="text-muted">—</span>
+                ) : (
+                  <span className={item.vote === 'phone' ? 'text-accent' : 'text-secondary'}>
+                    {item.vote === 'phone' ? 'phone' : 'PC'}
+                  </span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <p className="mt-2 text-xs text-muted">
+        Signals that the browser does not expose cast no vote and are shown as
+        unavailable rather than assumed.
+      </p>
+    </div>
+  );
+}
+
 export default function DeviceCapabilitiesPage() {
   const { data, error, loading, reload } = useAsync<Capabilities>((s) => api.capabilities(s), []);
   const [browser, setBrowser] = useState<BrowserCaps | null>(null);
+  const [deviceClass, setDeviceClass] = useState<DeviceClassification | null>(null);
   const [cameras, setCameras] = useState<{ deviceId: string; label: string }[]>([]);
   const [cameraErr, setCameraErr] = useState<string | null>(null);
 
   useEffect(() => {
     setBrowser(detectBrowserCaps());
+    setDeviceClass(detectDeviceClass());
     probeCameras().then((r) => {
       setCameras(r.cameras);
       setCameraErr(r.error);
@@ -60,6 +130,12 @@ export default function DeviceCapabilitiesPage() {
           </button>
         }
       />
+
+      {deviceClass && (
+        <div className="mb-4">
+          <DeviceClassCard classification={deviceClass} />
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Backend */}

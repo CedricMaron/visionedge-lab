@@ -1,0 +1,189 @@
+name: CI
+
+# The migration analysis recorded "CI: none" as a gap. This closes it.
+#
+# The suite is CPU-only by design: GitHub runners have no NVIDIA GPU, and the
+# platform is built so that every optional hardware probe degrades to an explicit
+# "unavailable with a reason". A green run here therefore also proves acceptance
+# criterion 19 — the application works without a GPU — on hardware that genuinely
+# lacks one, rather than on a developer box where the code path is never taken.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Guards the mock adapter: it fabricates measurements and refuses to construct
+  # under a production environment. CI is not production, so tests may use it.
+  IL_ENV: ci
+
+jobs:
+  backend:
+    name: Backend (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: backend/requirements/base.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements/base.txt
+
+      - name: Lint
+        working-directory: backend
+        run: ruff check app tests
+
+      - name: Export the baseline detection model
+        working-directory: backend
+        env:
+          YOLO_CONFIG_DIR: /tmp/Ultralytics
+        run: |
+          # Model-dependent tests skip cleanly when the weights are absent, so a
+          # failure to export must not fail the build — but it must be visible,
+          # otherwise a silently-skipped suite looks like a passing one.
+          pip install 'ultralytics>=8.3' || echo "::warning::ultralytics unavailable; model tests will skip"
+          PYTHONPATH=$PWD python ../scripts/export_onnx.py --model nano --size 640 \
+            || echo "::warning::model export failed; model-dependent tests will skip"
+
+      - name: Report which tests will be skipped
+        working-directory: backend
+        run: |
+          if [ -f ../models/yolov8n.onnx ]; then
+            echo "detection model present — model-dependent tests will run"
+          else
+            echo "::warning::models/yolov8n.onnx absent — detection adapter tests will skip"
+          fi
+
+      - name: Tests
+        working-directory: backend
+        run: PYTHONPATH=$PWD python -m pytest -q --junitxml=../pytest-results.xml
+
+      - name: Verify probes degrade without a GPU
+        working-directory: backend
+        run: |
+          # Acceptance criterion 19/20: the platform must run with every optional
+          # hardware probe absent, reporting reasons rather than failing.
+          PYTHONPATH=$PWD python - <<'PY'
+          from app.instrumentation.probes.gpu import NvmlProbe
+          from app.runtimes.registry import probe_all
+
+          probe = NvmlProbe()
+          assert probe.available or probe.unavailable_reason, "NVML gave no reason"
+          print(f"NVML: {'available' if probe.available else probe.unavailable_reason}")
+
+          for capability in probe_all():
+              assert capability.available or capability.unavailable_reason, (
+                  f"{capability.runtime_id} reported unavailable without a reason"
+              )
+          print(f"{len(probe_all())} runtimes probed, every unavailable one with a reason")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pytest-results
+          path: pytest-results.xml
+          if-no-files-found: ignore
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Tests
+        working-directory: frontend
+        run: npm run test
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Verify no pre-migration palette classes survive
+        working-directory: frontend
+        run: |
+          # The old surface-* scale was removed from the Tailwind config so a stray
+          # class fails the build. This catches one reintroduced in a string that
+          # Tailwind never sees.
+          if grep -rnE '\b(surface-[0-9]{3}|text-slate-[0-9]{3})\b' src/; then
+            echo "::error::pre-migration palette classes found — use semantic tokens"
+            exit 1
+          fi
+          echo "no legacy palette classes"
+
+  scenarios:
+    name: Benchmark scenarios validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements/base.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements/base.txt
+
+      - name: Validate every scenario and the model registry
+        working-directory: backend
+        run: |
+          PYTHONPATH=$PWD python - <<'PY'
+          from app.benchmark.scenarios import load_all
+          from app.models.registry import load_registry
+
+          scenarios = load_all()
+          assert scenarios, "no scenarios found"
+          for spec in scenarios.values():
+              print(f"  {spec.id:34} {spec.task.value}")
+          print(f"{len(scenarios)} scenarios validated")
+
+          registry = load_registry()
+          for entry in registry.models:
+              assert entry.model_license and entry.weights_license, (
+                  f"{entry.model_id} is missing a licence"
+              )
+          print(f"{len(registry.models)} registry models validated")
+          PY
