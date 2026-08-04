@@ -24,24 +24,55 @@ InferenceLab demonstrates three complementary levels of visual intelligence and 
 
 ## What is real vs. planned
 
+Measured on the reference box (i7-9750H, 12 threads, RTX 2060 6 GB, ~1 GB free RAM,
+WSL2). Every "working" row below is covered by tests in this repository.
+
+### Benchmarking platform
+
 | Capability | Status |
 |---|---|
-| YOLOv8n detection via ONNX Runtime (CPU) | ✅ **Working & tested** — real model, from-scratch NumPy NMS validated against Ultralytics |
-| Capability detection (CPU/RAM/GPU/CUDA/ORT providers/OpenVINO/TensorRT) | ✅ **Working** — every field is a real probe |
-| Model registry, runtime model-switching with rollback | ✅ **Working & tested** |
-| REST inference + WebSocket real-time transport (bounded queue, frame drop) | ✅ **Working** |
-| Benchmarking (measured latency P50/P95/P99, FPS, RSS) | ✅ **Working** — never hardcoded |
-| Auto-benchmark on model switch (background job, one step per inference) | ✅ **Working & tested** — records how much live traffic overlapped the run |
-| Per-model comparison (median across runs, never best, with run count) | ✅ **Working & tested** |
-| Per-stage inference timing (preprocess / inference / postprocess) | ✅ **Working & tested** |
-| Single-origin deployment: Caddy + compose, per-IP rate limiting, TLS | ✅ **Working** — images build, proxy/WSS/limits verified against a running stack |
-| Prometheus `/metrics`, structured JSON logs, SQLite persistence | ✅ **Working** |
-| VLM slice: interface + **mock** backend, detector grounding, structured output, agreement report | ✅ **Working & tested** (mock is deterministic and labelled as such) |
-| Local VLM (SmolVLM) + remote OpenAI-compatible VLM | 🟡 **Implemented, opt-in** — guarded imports; download/enable manually |
-| ONNX Runtime **CUDA**, PyTorch, OpenVINO, TensorRT detection backends | 🟡 **Interfaces + honest availability probes** — activate when the runtime + model/engine are installed |
-| JEPA (masking, EMA, collapse monitor, encoders, trainers), temporal buffer, anomaly scorer, orchestration (invocation policy, resource manager, execution planner), embedding store | 🟡 **Reimplemented primitives + tests**; full-scale training & pretrained-encoder integration are opt-in/planned |
-| React frontend (Live Inference, Capabilities, Model/Class selectors, Performance, Benchmarks, Multimodal Assistant) | ✅ **Working**; advanced research pages are honest "planned" shells |
-| Phone-local browser inference (ORT-Web / WebGPU), native mobile, real TensorRT engines, full JEPA training runs | ⛔ **Planned** — interfaces in place, clearly marked in the UI |
+| Phase-decomposed latency on a monotonic clock, with device synchronization | ✅ **Working & tested** |
+| Residual overhead reported explicitly, never folded into a real phase | ✅ **Working & tested** |
+| Raw per-iteration retention; percentiles recomputable from stored samples | ✅ **Working & tested** |
+| Warm-up / cold-start / steady-state separation | ✅ **Working & tested** |
+| Failed-iteration tracking, cancellation, timeouts | ✅ **Working & tested** |
+| Integrity warnings (thin sample, background load, throttling, dirty tree) | ✅ **Working & tested** |
+| Environment fingerprint + comparison guard that refuses incompatible runs | ✅ **Working & tested** |
+| CPU/RAM probes (psutil), GPU probes (NVML: utilization, clocks, temp, power, VRAM) | ✅ **Working** — every field a real probe |
+| Energy by integrating measured GPU power | ✅ **Working** — `derived`, GPU-only, refuses below 3 samples |
+| Sampler self-cost measurement; perturbation measured at <4% (interleaved) | ✅ **Working & tested** |
+| Versioned result schema, SQLite migrations, JSON/CSV/Markdown export | ✅ **Working & tested** |
+| CLI sharing one engine with the API (same fingerprint for the same config) | ✅ **Working & tested** |
+| Remote inference: correlation ids, server timing envelope, transport residual | ✅ **Working & tested** — verified over real HTTP |
+| CPU package energy (RAPL) | ⛔ **Not readable** under WSL2 — reported unavailable with that reason |
+| Framework GPU allocated/reserved memory | ⛔ **Not exposed by ONNX Runtime** — reported unavailable, NVML device totals shown separately |
+
+### Modalities
+
+| Task | Model | Status |
+|---|---|---|
+| Object detection | YOLOv8n (ONNX, AGPL-3.0) | ✅ **Working & tested** — from-scratch NumPy decode, equivalence-tested |
+| Image classification | MobileNetV4 Conv Small (ONNX, Apache-2.0) | ✅ **Working & tested** — timm preprocessing read from the model config |
+| Text embedding | all-MiniLM-L6-v2 (ONNX, Apache-2.0) | ✅ **Working & tested** — masked mean pooling, semantic ordering asserted |
+| Vision-language | mock backend; SmolVLM opt-in | 🟡 **Mock working & labelled**; local VLM guarded/opt-in |
+| Speech-to-text, TTS, image/video generation, LLM | — | ⛔ **Contracts and scenarios only** — no runtime fits ~1 GB free RAM here; every entry says so |
+
+### Runtimes
+
+| Runtime | Status |
+|---|---|
+| ONNX Runtime (CPU) | ✅ **Working** |
+| ONNX Runtime (CUDA) | 🟡 **Probed and refused** — provider is listed but session creation fails (`libcublasLt.so.12` missing), so the load is rejected rather than silently falling back to CPU |
+| PyTorch, TensorRT, OpenVINO, CoreML, TFLite, MLX, llama.cpp, vLLM, TGI, browser, remote-streaming | 🟡 **Declared and probed** — each reports whether the dependency is missing or the adapter is unimplemented |
+
+### Vision slice (from VisionEdge Lab, preserved)
+
+| Capability | Status |
+|---|---|
+| Live WebSocket inference with bounded queue and frame drop | ✅ **Working** |
+| Model switching with rollback, auto-benchmark on switch | ✅ **Working & tested** |
+| Caddy + compose deployment, per-IP rate limiting, TLS | ✅ **Working** — live |
+| JEPA primitives, temporal buffer, anomaly scorer, orchestration | 🟡 **Reimplemented primitives + tests**; full training runs planned |
 
 ---
 
