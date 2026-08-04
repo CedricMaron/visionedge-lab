@@ -259,17 +259,34 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'pip install failed.' }
     Write-Ok 'dependencies installed'
 
-    # --- 4. model ------------------------------------------------------------
-    Write-Step 'Detection model'
-    $model = Join-Path $RepoRoot 'models\yolov8n.onnx'
-    if (Test-Path $model) {
-        Write-Ok 'model already installed'
-    } else {
+    # --- 4. models -----------------------------------------------------------
+    # InferenceLab demonstrates three modalities, so all three models are installed.
+    # Only the detector is required: the platform reports an absent model as
+    # "not installed" with an install hint rather than failing, so a download that
+    # fails leaves a working site with one fewer modality instead of no site.
+    Write-Step 'Models'
+    $models = @(
+        @{ Id = 'yolov8n-onnx';                Path = 'models\yolov8n.onnx';                                  Required = $true  },
+        @{ Id = 'mobilenetv4-conv-small-onnx'; Path = 'models\classification\mobilenetv4_conv_small.onnx';    Required = $false },
+        @{ Id = 'all-minilm-l6-v2-onnx';       Path = 'models\embedding\all-MiniLM-L6-v2.onnx';              Required = $false }
+    )
+    foreach ($m in $models) {
+        $target = Join-Path $RepoRoot $m.Path
+        if (Test-Path $target) {
+            Write-Ok ("{0}: already installed" -f $m.Id)
+            continue
+        }
         Push-Location $RepoRoot
-        & $venvPython 'scripts\download_models.py' --install yolov8n-onnx
+        & $venvPython 'scripts\download_models.py' --install $m.Id -y
         Pop-Location
-        if (-not (Test-Path $model)) { throw 'Model download failed.' }
-        Write-Ok 'model downloaded and checksum-verified'
+
+        if (Test-Path $target) {
+            Write-Ok ("{0}: downloaded and checksum-verified" -f $m.Id)
+        } elseif ($m.Required) {
+            throw ("Required model '{0}' failed to install." -f $m.Id)
+        } else {
+            Write-Warn ("{0}: install failed - the site will report it as not installed" -f $m.Id)
+        }
     }
 
     # --- 5. frontend ---------------------------------------------------------

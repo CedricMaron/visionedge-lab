@@ -39,6 +39,11 @@ $env:IL_CORS_ORIGINS         = "https://$SiteAddress"
 $env:IL_RATE_LIMIT_PER_MIN   = "$RateLimitPerMin"
 # Frames are never sent to a remote VLM unless this is deliberately enabled.
 $env:IL_ALLOW_FRAME_TRANSMISSION = 'false'
+# Belt and braces for the mock adapter: it fabricates measurements and refuses to
+# construct under a production environment. Nothing lists it in production anyway
+# (the registry filters test adapters), but a guard that is never armed is not a
+# guard.
+$env:IL_ENV                  = 'production'
 $env:PYTHONPATH              = Join-Path $RepoRoot 'backend'
 
 Set-Location (Join-Path $RepoRoot 'backend')
