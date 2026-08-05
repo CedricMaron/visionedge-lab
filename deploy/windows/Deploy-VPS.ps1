@@ -109,6 +109,11 @@ function Stop-ProcessOnPort {
     }
 
     Write-Host "    stopping orphaned $($proc.ProcessName) (PID $($proc.Id)) holding port $Port"
+    # Mark BEFORE killing, so a failure later in the deploy still triggers the
+    # rollback. Setting this only when a scheduled TASK was Running would miss the
+    # orphaned-process case entirely - which is the case that actually occurs -
+    # and the site would stay down with nothing restarting it.
+    $script:OurServicesStopped = $true
     Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
     foreach ($i in 1..20) {
         Start-Sleep -Milliseconds 500
