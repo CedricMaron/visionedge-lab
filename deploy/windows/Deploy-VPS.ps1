@@ -50,6 +50,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $script:IisWasRunning = $false
+$script:OurServicesStopped = $false
 $script:CaddyExe = 'caddy'
 
 # PowerShell 5.1 on Windows Server still defaults to TLS 1.0/1.1, which modern
@@ -60,6 +61,53 @@ $script:CaddyExe = 'caddy'
 function Write-Step { param([string]$Message) Write-Host "`n==> $Message" -ForegroundColor Cyan }
 function Write-Ok   { param([string]$Message) Write-Host "    [ok] $Message" -ForegroundColor Green }
 function Write-Warn { param([string]$Message) Write-Host "    [warn] $Message" -ForegroundColor Yellow }
+
+# Stops the services this script owns, and waits for them to actually exit.
+#
+# Two separate bugs need this:
+#   1. Start-ScheduledTask is a no-op against a task already Running, so without
+#      an explicit stop the old backend survives a deploy and keeps serving stale
+#      code while the health probe happily returns 200 from it.
+#   2. The port 80/443 availability check cannot tell our own Caddy from a foreign
+#      squatter, so on a RE-deploy our own Caddy fails the check. Stopping first
+#      means anything still holding the ports afterwards is genuinely foreign.
+#
+# Stop-ScheduledTask returns before the process has exited, hence the wait.
+function Stop-OurServices {
+    foreach ($taskName in @('VisionEdge-Backend', 'VisionEdge-Caddy')) {
+        $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+        if (-not $task -or $task.State -ne 'Running') { continue }
+
+        Stop-ScheduledTask -TaskName $taskName
+        foreach ($i in 1..20) {
+            Start-Sleep -Milliseconds 500
+            if ((Get-ScheduledTask -TaskName $taskName).State -ne 'Running') { break }
+        }
+        if ((Get-ScheduledTask -TaskName $taskName).State -eq 'Running') {
+            throw "$taskName would not stop. Stop it manually (Stop-ScheduledTask $taskName) and re-run."
+        }
+        $script:OurServicesStopped = $true
+        Write-Ok "$taskName stopped"
+    }
+}
+
+# Bring back whatever this script took down. On a re-deploy IIS was never running
+# (Caddy held the ports), so restoring IIS alone would leave the site dark - the
+# services we stopped are the ones that need to come back.
+function Restore-OurServices {
+    if (-not $script:OurServicesStopped) { return }
+    Write-Warn 'Deployment failed after the services were stopped - restarting them.'
+    foreach ($taskName in @('VisionEdge-Backend', 'VisionEdge-Caddy')) {
+        if (-not (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue)) { continue }
+        try {
+            Start-ScheduledTask -TaskName $taskName -ErrorAction Stop
+            Write-Ok "$taskName restarted"
+        } catch {
+            Write-Host "    [error] Could not restart ${taskName}: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "    Run manually: Start-ScheduledTask $taskName" -ForegroundColor Red
+        }
+    }
+}
 
 function Restore-Iis {
     if ($script:IisWasRunning) {
@@ -339,6 +387,12 @@ try {
 
     # --- 7. IIS handover (the risky part) -----------------------------------
     Write-Step 'Handing ports 80/443 over from IIS'
+
+    # Release our own ports first. On a re-deploy Caddy is already running and
+    # holding 80/443, and the check below would otherwise report our own process
+    # as the squatter and abort after IIS had been stopped.
+    Stop-OurServices
+
     $iis = Get-Service W3SVC -ErrorAction SilentlyContinue
     if ($iis -and $iis.Status -eq 'Running') {
         if (-not $Force) {
@@ -362,7 +416,13 @@ try {
         $names = ($held | ForEach-Object {
             (Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue).ProcessName
         } | Sort-Object -Unique) -join ', '
-        throw "Ports 80/443 are still held by: $names. Stop that process and re-run."
+        $detail = ($held | ForEach-Object {
+            $proc = Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue
+            "$($proc.ProcessName) (PID $($_.OwningProcess)) on port $($_.LocalPort)"
+        } | Sort-Object -Unique) -join '; '
+        throw ("Ports 80/443 are still held by: $names. This is not a service this " +
+               "script manages - ours were already stopped. Holder(s): $detail. " +
+               'Stop that process and re-run.')
     }
     Write-Ok 'ports 80 and 443 are free'
 
@@ -397,21 +457,9 @@ try {
     $deployedCommit = (& git -C $RepoRoot rev-parse HEAD).Trim()
     Write-Host "    deploying commit $($deployedCommit.Substring(0,12))"
 
-    foreach ($taskName in @('VisionEdge-Backend', 'VisionEdge-Caddy')) {
-        $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
-        if ($task -and $task.State -eq 'Running') {
-            Stop-ScheduledTask -TaskName $taskName
-            # Stop-ScheduledTask returns before the process has actually exited.
-            foreach ($i in 1..20) {
-                Start-Sleep -Milliseconds 500
-                if ((Get-ScheduledTask -TaskName $taskName).State -ne 'Running') { break }
-            }
-            if ((Get-ScheduledTask -TaskName $taskName).State -eq 'Running') {
-                throw "$taskName would not stop; the old process would keep serving stale code."
-            }
-            Write-Ok "$taskName stopped"
-        }
-    }
+    # Already stopped in step 7, before the port check. Re-running is harmless and
+    # covers a task that was (re)started by its trigger in between.
+    Stop-OurServices
 
     Start-ScheduledTask -TaskName 'VisionEdge-Backend'
     Start-ScheduledTask -TaskName 'VisionEdge-Caddy'
@@ -438,6 +486,8 @@ try {
     if (-not $health.git_commit) {
         Write-Warn 'backend did not report a commit; cannot verify it is running the deployed code'
     }
+    # Services are up and verified; a later failure must not claim to restart them.
+    $script:OurServicesStopped = $false
     Write-Ok "backend healthy on 127.0.0.1:8000 (version $($health.version), commit $($deployedCommit.Substring(0,12)))"
 
     if ($health.warnings -and $health.warnings.Count -gt 0) {
@@ -486,6 +536,7 @@ try {
 catch {
     Write-Host ''
     Write-Host "DEPLOYMENT FAILED: $($_.Exception.Message)" -ForegroundColor Red
+    Restore-OurServices
     Restore-Iis
     exit 1
 }
