@@ -82,3 +82,29 @@ def test_infer_returns_a_real_timing_breakdown(client):
     parts = t["preprocess_ms"] + t["inference_ms"] + t["postprocess_ms"]
     assert parts <= t["end_to_end_ms"] + 1.0        # parts fit inside the whole
     assert t["inference_ms"] < t["end_to_end_ms"]   # not the same number twice
+
+
+class TestDeployVerifiability:
+    """/health must identify which build is running.
+
+    A deploy that cannot tell a new process from an old one will silently leave
+    stale code running and then confirm its own success — which is exactly what
+    happened on the first InferenceLab deploy: the frontend was rebuilt, the
+    backend scheduled task was already Running so the start request was ignored,
+    and the health probe got a 200 from the old process.
+    """
+
+    def test_health_reports_the_running_version(self, client):
+        body = client.get("/health").json()
+        assert body["version"], "/health must report the app version"
+
+    def test_health_reports_the_running_commit(self, client):
+        body = client.get("/health").json()
+        # None is acceptable (a tarball deploy has no git metadata); the key must
+        # exist so a deploy can assert on it.
+        assert "git_commit" in body
+
+    def test_health_keeps_its_existing_contract(self, client):
+        body = client.get("/health").json()
+        assert body["status"] == "ok"
+        assert "detection_health" in body and "warnings" in body

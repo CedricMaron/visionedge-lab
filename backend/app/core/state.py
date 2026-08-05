@@ -20,8 +20,10 @@ from app.core.config import (
     adopt_legacy_env,
     get_settings,
 )
+from app.core.version import APP_VERSION
 from app.inference.config import InferenceConfig
 from app.inference.manager import DetectionManager
+from app.instrumentation.environment import git_commit
 from app.jobs.manager import JobManager
 from app.models.registry import ModelRegistry, load_registry, refresh_deployment_status
 from app.monitoring.metrics import RollingMetrics
@@ -43,6 +45,10 @@ class AppState:
     vlm: VLMManager | None = None
     jobs: JobManager | None = None
     startup_warnings: list[str] = field(default_factory=list)
+    #: Identifies which build is running. Resolved once at startup so /health
+    #: stays cheap, and so a deploy can prove it restarted the right process.
+    version: str = APP_VERSION
+    git_commit: str | None = None
 
 
 def build_state() -> AppState:
@@ -96,6 +102,7 @@ def build_state() -> AppState:
     state = AppState(
         settings=settings, capabilities=caps, registry=registry, db=db,
         detection=detection, metrics=metrics, vlm=vlm, startup_warnings=warnings,
+        git_commit=git_commit(),
     )
     # Attached after construction: the job factory closes over the finished state.
     state.jobs = JobManager(factory=make_job_factory(state))

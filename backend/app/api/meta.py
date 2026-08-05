@@ -13,8 +13,16 @@ router = APIRouter(tags=["meta"])
 @router.get("/health")
 async def health(request: Request):
     state = get_state(request)
-    return {"status": "ok", "detection_health": state.detection.health().value,
-            "warnings": state.startup_warnings}
+    return {
+        "status": "ok",
+        "detection_health": state.detection.health().value,
+        "warnings": state.startup_warnings,
+        # Build identity. A deploy compares git_commit against the revision it just
+        # checked out; without it, a health probe cannot distinguish the process it
+        # started from one that was already running.
+        "version": state.version,
+        "git_commit": state.git_commit,
+    }
 
 
 @router.get("/ready")

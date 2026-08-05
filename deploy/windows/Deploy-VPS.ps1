@@ -387,24 +387,62 @@ try {
         -Principal $principal -Settings $settings | Out-Null
     Write-Ok 'tasks registered'
 
-    # --- 9. start ------------------------------------------------------------
-    Write-Step 'Starting services'
+    # --- 9. restart ----------------------------------------------------------
+    # Stop BEFORE starting. Start-ScheduledTask on a task that is already Running is
+    # a no-op, so without this the previous backend survives the deploy and keeps
+    # serving the old code - while the health probe below happily returns 200 from
+    # it and the deploy declares success. That is exactly how a rebuilt frontend
+    # ended up talking to a backend that had never heard of /api/lab.
+    Write-Step 'Restarting services'
+    $deployedCommit = (& git -C $RepoRoot rev-parse HEAD).Trim()
+    Write-Host "    deploying commit $($deployedCommit.Substring(0,12))"
+
+    foreach ($taskName in @('VisionEdge-Backend', 'VisionEdge-Caddy')) {
+        $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+        if ($task -and $task.State -eq 'Running') {
+            Stop-ScheduledTask -TaskName $taskName
+            # Stop-ScheduledTask returns before the process has actually exited.
+            foreach ($i in 1..20) {
+                Start-Sleep -Milliseconds 500
+                if ((Get-ScheduledTask -TaskName $taskName).State -ne 'Running') { break }
+            }
+            if ((Get-ScheduledTask -TaskName $taskName).State -eq 'Running') {
+                throw "$taskName would not stop; the old process would keep serving stale code."
+            }
+            Write-Ok "$taskName stopped"
+        }
+    }
+
     Start-ScheduledTask -TaskName 'VisionEdge-Backend'
     Start-ScheduledTask -TaskName 'VisionEdge-Caddy'
     Write-Host '    waiting for the backend to load the model...'
 
-    $backendUp = $false
+    $health = $null
     foreach ($i in 1..30) {
         Start-Sleep -Seconds 2
         try {
             $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8000/health' -UseBasicParsing -TimeoutSec 5
-            if ($r.StatusCode -eq 200) { $backendUp = $true; break }
+            if ($r.StatusCode -eq 200) { $health = $r.Content | ConvertFrom-Json; break }
         } catch { }
     }
-    if (-not $backendUp) {
+    if (-not $health) {
         throw 'Backend did not become healthy within 60s. Check: Get-ScheduledTask VisionEdge-Backend; and run .\deploy\windows\Start-Backend.ps1 in the foreground to see the error.'
     }
-    Write-Ok 'backend healthy on 127.0.0.1:8000'
+
+    # A 200 only proves SOME backend is up. Verify it is the one just deployed.
+    if ($health.git_commit -and $deployedCommit -and $health.git_commit -ne $deployedCommit) {
+        throw ("Backend is healthy but running commit $($health.git_commit.Substring(0,12)), " +
+               "not the deployed $($deployedCommit.Substring(0,12)). A stale process survived " +
+               'the restart - stop it with: Stop-ScheduledTask VisionEdge-Backend')
+    }
+    if (-not $health.git_commit) {
+        Write-Warn 'backend did not report a commit; cannot verify it is running the deployed code'
+    }
+    Write-Ok "backend healthy on 127.0.0.1:8000 (version $($health.version), commit $($deployedCommit.Substring(0,12)))"
+
+    if ($health.warnings -and $health.warnings.Count -gt 0) {
+        foreach ($w in $health.warnings) { Write-Warn $w }
+    }
 
     Write-Host '    waiting for Caddy to obtain certificates (first run can take ~30s)...'
     $siteUp = $false

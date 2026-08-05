@@ -17,6 +17,7 @@ from app.core.config import get_settings
 from app.core.errors import InferenceLabError
 from app.core.logging import configure_logging, get_logger
 from app.core.state import build_state
+from app.core.version import APP_VERSION
 
 log = get_logger("main")
 
@@ -41,7 +42,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="InferenceLab", version="0.2.0", lifespan=lifespan)
+    app = FastAPI(title="InferenceLab", version=APP_VERSION, lifespan=lifespan)
 
     origins = ["*"] if settings.cors_origins.strip() == "*" else [
         o.strip() for o in settings.cors_origins.split(",") if o.strip()
