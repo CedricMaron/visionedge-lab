@@ -62,17 +62,64 @@ function Write-Step { param([string]$Message) Write-Host "`n==> $Message" -Foreg
 function Write-Ok   { param([string]$Message) Write-Host "    [ok] $Message" -ForegroundColor Green }
 function Write-Warn { param([string]$Message) Write-Host "    [warn] $Message" -ForegroundColor Yellow }
 
-# Stops the services this script owns, and waits for them to actually exit.
+# Stops the services this script owns.
 #
-# Two separate bugs need this:
-#   1. Start-ScheduledTask is a no-op against a task already Running, so without
-#      an explicit stop the old backend survives a deploy and keeps serving stale
-#      code while the health probe happily returns 200 from it.
-#   2. The port 80/443 availability check cannot tell our own Caddy from a foreign
-#      squatter, so on a RE-deploy our own Caddy fails the check. Stopping first
-#      means anything still holding the ports afterwards is genuinely foreign.
+# Stopping the scheduled TASK is not enough. A task can sit in the Ready state
+# while the process it launched is still alive and holding ports - which is
+# exactly what happened here: VisionEdge-Caddy reported not-Running while
+# caddy.exe (PID 6620) held 80 and 443 continuously since the first deploy. The
+# same mechanism explains a backend that kept serving stale code: a second
+# process starts, fails to bind 8000, exits, and the original keeps answering.
 #
-# Stop-ScheduledTask returns before the process has exited, hence the wait.
+# So: stop the task, then stop the PROCESS, then wait for the port to be free.
+# Only processes this deployment owns are ever touched - identified by executable
+# path, so a caddy or python belonging to something else on the box is left alone
+# and reported instead.
+function Stop-ProcessOnPort {
+    param(
+        [Parameter(Mandatory)][int]$Port,
+        [Parameter(Mandatory)][string[]]$OwnedPaths,
+        [Parameter(Mandatory)][string]$ExpectedName
+    )
+
+    $holder = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+              Select-Object -First 1
+    if (-not $holder) { return $true }
+
+    $proc = Get-Process -Id $holder.OwningProcess -ErrorAction SilentlyContinue
+    if (-not $proc) { return $true }
+
+    $path = try { $proc.Path } catch { $null }
+    $isOurs = $false
+    if ($path) {
+        foreach ($owned in $OwnedPaths) {
+            if ($owned -and $path -ieq $owned) { $isOurs = $true; break }
+        }
+    } elseif ($proc.ProcessName -ieq $ExpectedName) {
+        # Path unreadable (happens for processes started by another account).
+        # Fall back to the name, and say so rather than killing silently.
+        Write-Warn "could not read the path of $($proc.ProcessName) (PID $($proc.Id)); matching on name"
+        $isOurs = $true
+    }
+
+    if (-not $isOurs) {
+        Write-Warn ("port $Port is held by $($proc.ProcessName) (PID $($proc.Id)) at " +
+                    "$path - not ours, leaving it alone")
+        return $false
+    }
+
+    Write-Host "    stopping orphaned $($proc.ProcessName) (PID $($proc.Id)) holding port $Port"
+    Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+    foreach ($i in 1..20) {
+        Start-Sleep -Milliseconds 500
+        if (-not (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)) {
+            Write-Ok "port $Port released"
+            return $true
+        }
+    }
+    return $false
+}
+
 function Stop-OurServices {
     foreach ($taskName in @('VisionEdge-Backend', 'VisionEdge-Caddy')) {
         $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
@@ -83,17 +130,29 @@ function Stop-OurServices {
             Start-Sleep -Milliseconds 500
             if ((Get-ScheduledTask -TaskName $taskName).State -ne 'Running') { break }
         }
-        if ((Get-ScheduledTask -TaskName $taskName).State -eq 'Running') {
-            throw "$taskName would not stop. Stop it manually (Stop-ScheduledTask $taskName) and re-run."
-        }
         $script:OurServicesStopped = $true
-        Write-Ok "$taskName stopped"
+        Write-Ok "$taskName task stopped"
+    }
+
+    # The task state says nothing about whether the process actually died.
+    $caddyPaths = @(
+        (Join-Path $env:ProgramData 'VisionEdge\tools\caddy.exe'),
+        (Get-Command caddy -ErrorAction SilentlyContinue).Source
+    ) | Where-Object { $_ }
+    $pythonPaths = @(Join-Path $RepoRoot 'backend\.venv\Scripts\python.exe')
+
+    # Deliberately non-fatal. On a FIRST deploy IIS still holds 80/443 at this
+    # point and is handed over immediately below, so a foreign holder here is
+    # expected rather than an error. The port check after the IIS handover is the
+    # one that decides - by then anything still listening really is a problem.
+    foreach ($port in 80, 443) {
+        [void](Stop-ProcessOnPort -Port $port -OwnedPaths $caddyPaths -ExpectedName 'caddy')
+    }
+    if (-not (Stop-ProcessOnPort -Port 8000 -OwnedPaths $pythonPaths -ExpectedName 'python')) {
+        Write-Warn 'port 8000 still held; the backend could keep serving stale code'
     }
 }
 
-# Bring back whatever this script took down. On a re-deploy IIS was never running
-# (Caddy held the ports), so restoring IIS alone would leave the site dark - the
-# services we stopped are the ones that need to come back.
 function Restore-OurServices {
     if (-not $script:OurServicesStopped) { return }
     Write-Warn 'Deployment failed after the services were stopped - restarting them.'
