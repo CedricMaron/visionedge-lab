@@ -1,31 +1,52 @@
-// InferenceLab — minimal, honest app-shell service worker.
-// This is intentionally simple: it caches the app shell for offline load of
-// static assets only. It NEVER caches API or WebSocket responses — live
-// inference data must always come from the network.
-const CACHE = 'inferencelab-shell-v2';
-const SHELL = ['/', '/index.html', '/manifest.json', '/favicon.svg'];
+// InferenceLab — service worker removal.
+//
+// This file used to be a cache-first app-shell worker. That is why the site went
+// blank after a deploy: it answered every GET from its cache, including
+// `/index.html`, and it only reinstalls when this file's own bytes change. So a
+// returning visitor got the PREVIOUS index.html, which referenced asset hashes the
+// rebuild had deleted — the scripts 404'd, nothing executed, and the page rendered
+// empty. Meanwhile the server was serving the new build correctly to anyone
+// without the worker, which is what made it look like a server problem.
+//
+// It is not replaced with a smarter caching strategy, because there was nothing to
+// win: every useful thing this app does — inference, probes, telemetry, benchmarks
+// — requires the server, so an offline shell could only ever show a broken tool.
+// The one job left is to remove itself from the browsers that still have it.
+//
+// Deleting the file would NOT have worked: `/sw.js` would then fall through the
+// SPA rewrite and return index.html as text/html, the update would fail on the MIME
+// check, and the old worker would stay registered forever. A worker can only be
+// retired by a worker.
+//
+// Note the deliberate absence of a `fetch` handler: with none registered, requests
+// go straight to the network from the moment this version activates, so a client is
+// no longer served stale content even before the unregistration completes.
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
+self.addEventListener('install', () => {
+  // Do not wait for existing tabs to close — they are the broken ones.
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))),
-    ),
-  );
-  self.clients.claim();
-});
+    (async () => {
+      // Drop every cache this origin ever created, not just the known name: a
+      // cache left behind under an older key would keep serving a stale shell.
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key)));
 
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-  // Never touch API traffic — always go to network.
-  if (url.pathname.startsWith('/api') || event.request.method !== 'GET') {
-    return;
-  }
-  event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request)),
+      await self.clients.claim();
+      await self.registration.unregister();
+
+      // Reload whatever is open. Without this the visitor keeps staring at the
+      // blank page until they reload by hand — the fix would work but look like
+      // it had not.
+      const clients = await self.clients.matchAll({ type: 'window' });
+      for (const client of clients) {
+        client.navigate(client.url).catch(() => {
+          /* A client that refuses to navigate recovers on its next reload. */
+        });
+      }
+    })(),
   );
 });

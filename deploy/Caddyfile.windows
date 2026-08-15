@@ -73,14 +73,27 @@
 		file_server
 	}
 
-	# NOTE: camera=(self), unlike the portfolio's camera=(). Live Inference calls
-	# getUserMedia, and a restrictive Permissions-Policy here would silently break
-	# it with no error the user could act on.
+	# NOTE: camera=(self), unlike the portfolio's camera=(). The Playground calls
+	# getUserMedia for video input, and a restrictive Permissions-Policy here would
+	# silently break it with no error the user could act on.
 	header {
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "camera=(self), microphone=(), geolocation=()"
 	}
+
+	# Same split as MyAlphaEdge below, and for the same reason — this site had no
+	# cache policy at all, which is half of why a deploy could leave a returning
+	# visitor on a blank page: the browser reused a heuristically-cached
+	# index.html pointing at asset hashes the rebuild had deleted. Matched on
+	# "not /assets/*" rather than "*.html", because SPA routes like /pipeline are
+	# served index.html under a path with no .html suffix. sw.js falls in the
+	# document bucket on purpose: a cached service worker script is what makes a
+	# bad worker outlive the deploy that fixed it.
+	@assets path /assets/*
+	@document not path /assets/*
+	header @document Cache-Control "no-cache"
+	header @assets Cache-Control "public, max-age=31536000, immutable"
 
 	log {
 		output file {$SITE_LOG:C:/visionedge-lab/logs/caddy.log} {

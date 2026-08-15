@@ -8,11 +8,23 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 
-// Register the minimal app-shell service worker (honest no-op cache).
+// No service worker is registered any more, and any surviving one is removed.
+//
+// The previous worker was cache-first over every GET, so after a deploy it kept
+// serving the old index.html against asset hashes that no longer existed and the
+// page rendered blank. Registering `/sw.js` is still what retires it: that file is
+// now a kill switch that clears the caches and unregisters itself. Unregistering
+// from here as well covers the browser that has a worker but never fetches the
+// update — belt and braces, because the failure mode is an invisible one.
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {
-      /* Service worker is optional; ignore registration failures. */
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) => registrations.forEach((r) => r.unregister()))
+        .catch(() => {
+          /* Nothing further this page can do; a hard reload still recovers. */
+        });
     });
   });
 }
