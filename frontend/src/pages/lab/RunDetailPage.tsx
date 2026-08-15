@@ -354,7 +354,7 @@ export default function RunDetailPage() {
         </div>
 
         <p className="text-xs text-muted">
-          <Link to="/lab/results" className="text-accent hover:underline">
+          <Link to="/performance" className="text-accent hover:underline">
             ← all results
           </Link>
         </p>

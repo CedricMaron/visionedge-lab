@@ -1,6 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { NAV } from '@/nav';
+import { FOOTER_NAV, NAV } from '@/nav';
 import { Icon } from './Icon';
+
+const linkClass = (isActive: boolean) =>
+  `group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition ${
+    isActive ? 'bg-accent/15 text-accent' : 'text-secondary hover:bg-elevated hover:text-primary'
+  }`;
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
@@ -11,7 +16,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
         <div className="leading-tight">
           <div className="text-sm font-semibold text-primary">InferenceLab</div>
-          <div className="text-[11px] text-muted">multimodal vision platform</div>
+          <div className="text-[11px] text-muted">inference · pipeline · benchmarks</div>
         </div>
       </div>
 
@@ -28,21 +33,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                     to={item.path}
                     end={item.path === '/'}
                     onClick={onNavigate}
-                    className={({ isActive }) =>
-                      `group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition ${
-                        isActive
-                          ? 'bg-accent/15 text-accent'
-                          : 'text-secondary hover:bg-elevated hover:text-primary'
-                      }`
-                    }
+                    className={({ isActive }) => linkClass(isActive)}
                   >
                     <Icon name={item.icon} className="h-[18px] w-[18px] shrink-0" />
                     <span className="truncate">{item.label}</span>
-                    {item.status === 'planned' && (
-                      <span className="ml-auto rounded bg-elevated px-1.5 py-0.5 text-[9px] font-medium uppercase text-muted">
-                        soon
-                      </span>
-                    )}
                   </NavLink>
                 </li>
               ))}
@@ -51,7 +45,32 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </div>
 
-      <div className="mt-4 px-2 text-[10px] text-muted">Phase 2 build · Detection slice live</div>
+      <ul className="mt-6 space-y-0.5 border-t border-subtle pt-3">
+        {FOOTER_NAV.map((item) => (
+          <li key={item.label}>
+            {item.href ? (
+              <a
+                href={item.href}
+                target="_blank"
+                rel="noreferrer noopener"
+                className={linkClass(false)}
+              >
+                <Icon name={item.icon} className="h-[18px] w-[18px] shrink-0" />
+                <span className="truncate">{item.label}</span>
+              </a>
+            ) : (
+              <NavLink
+                to={item.path as string}
+                onClick={onNavigate}
+                className={({ isActive }) => linkClass(isActive)}
+              >
+                <Icon name={item.icon} className="h-[18px] w-[18px] shrink-0" />
+                <span className="truncate">{item.label}</span>
+              </NavLink>
+            )}
+          </li>
+        ))}
+      </ul>
     </nav>
   );
 }
