@@ -69,8 +69,53 @@ def _run_git(*args: str) -> str | None:
     return result.stdout.strip()
 
 
+def _commit_from_git_dir() -> str | None:
+    """Resolve HEAD by reading ``.git`` directly, without the git binary.
+
+    The deploy verifies that the process answering /health is running the commit it
+    just checked out — the check that catches a stale server surviving a restart.
+    On the VPS the backend runs as SYSTEM, where ``git`` is off PATH and the
+    repository is owned by another account, so ``_run_git`` returns None and that
+    verification silently degrades to a warning. Reading the files needs neither a
+    binary on PATH nor ownership of the worktree.
+    """
+    git_dir = REPO_ROOT / ".git"
+    try:
+        # A worktree or submodule has a `.git` FILE pointing at the real directory.
+        if git_dir.is_file():
+            pointer = git_dir.read_text(encoding="utf-8").strip()
+            if not pointer.startswith("gitdir:"):
+                return None
+            git_dir = Path(pointer.split(":", 1)[1].strip())
+            if not git_dir.is_absolute():
+                git_dir = (REPO_ROOT / git_dir).resolve()
+
+        head = (git_dir / "HEAD").read_text(encoding="utf-8").strip()
+        if not head.startswith("ref:"):
+            return head or None  # detached HEAD holds the sha itself
+
+        ref = head.split(":", 1)[1].strip()
+        loose = git_dir / ref
+        if loose.is_file():
+            return loose.read_text(encoding="utf-8").strip() or None
+
+        # A ref that has been packed away has no file of its own.
+        packed = git_dir / "packed-refs"
+        if packed.is_file():
+            for line in packed.read_text(encoding="utf-8").splitlines():
+                if line.startswith(("#", "^")):
+                    continue
+                sha, _, name = line.partition(" ")
+                if name.strip() == ref:
+                    return sha.strip() or None
+    except (OSError, ValueError, IndexError) as exc:
+        log.warning("git_dir_unreadable", error=str(exc))
+    return None
+
+
 def git_commit() -> str | None:
-    return _run_git("rev-parse", "HEAD")
+    """The deployed commit, from git when it is usable and from ``.git`` otherwise."""
+    return _run_git("rev-parse", "HEAD") or _commit_from_git_dir()
 
 
 def git_dirty() -> bool | None:

@@ -449,6 +449,43 @@ try {
     }
     Write-Ok "serving the portfolio from $PortfolioRoot"
 
+    # --- 6b. Caddy configuration ---------------------------------------------
+    # Validated HERE, before anything is stopped. One Caddy instance fronts all
+    # three sites, so an invalid Caddyfile does not break this site alone - it
+    # takes the portfolio and MyAlphaEdge down with it, and `caddy run` fails at
+    # startup rather than on reload, when the ports have already been handed over.
+    # Failing at this point costs nothing: IIS is still serving and our services
+    # are still up. This is the manual step the deploy used to leave to the
+    # operator, which is exactly the kind of step that gets skipped.
+    Write-Step 'Validating the Caddy configuration'
+    $caddyfile = Join-Path $RepoRoot 'deploy\Caddyfile.windows'
+    if (-not (Test-Path $caddyfile)) { throw "Caddyfile not found at $caddyfile" }
+
+    # The same substitutions Start-Caddy.ps1 exports, so validation sees the config
+    # that will actually run rather than the in-file defaults.
+    $env:SITE_ADDRESS      = $SiteAddress
+    $env:SITE_ROOT         = (Join-Path $frontend 'dist').Replace('\', '/')
+    $env:SITE_LOG          = (Join-Path $RepoRoot 'logs\caddy.log').Replace('\', '/')
+    $env:PORTFOLIO_ADDRESS = $PortfolioAddress
+    $env:PORTFOLIO_ROOT    = $PortfolioRoot.Replace('\', '/')
+    $env:PORTFOLIO_LOG     = (Join-Path $RepoRoot 'logs\portfolio.log').Replace('\', '/')
+
+    # caddy writes validate output to stderr even on success, and under
+    # ErrorActionPreference='Stop' PowerShell promotes native stderr to a
+    # terminating error - a valid Caddyfile would abort the deploy. Relax it for
+    # this call only and decide on the exit code, the same way Start-Caddy.ps1 does
+    # for the long-running process.
+    $previousPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    $validation = & $script:CaddyExe validate --config $caddyfile --adapter caddyfile 2>&1 | Out-String
+    $validationExit = $LASTEXITCODE
+    $ErrorActionPreference = $previousPreference
+    if ($validationExit -ne 0) {
+        throw ("The Caddyfile is invalid, so nothing was stopped and every site is " +
+               "still up. Fix deploy\Caddyfile.windows and re-run.`n$validation")
+    }
+    Write-Ok 'Caddyfile valid'
+
     # --- 7. IIS handover (the risky part) -----------------------------------
     Write-Step 'Handing ports 80/443 over from IIS'
 
@@ -572,6 +609,75 @@ try {
     Write-Step 'Verification'
     if ($siteUp) {
         Write-Ok "https://$SiteAddress/health responded 200"
+
+        # The handover is proven complete: Caddy is answering on 443 for this host.
+        # Restoring IIS after this point would take the ports back from a working
+        # Caddy, so a later failure must not try - it reports instead.
+        $script:IisWasRunning = $false
+
+        # A 200 on / proves only that SOME html came back. The page that shipped a
+        # blank site returned exactly that: a valid index.html whose script tags
+        # pointed at asset hashes the rebuild had deleted, so nothing executed and
+        # #root stayed empty. Fetch the document and demand every asset it
+        # references, which is the assertion that would have caught it.
+        Write-Host '    checking that every asset the page references is served...'
+        $missing = @()
+        try {
+            $page = Invoke-WebRequest -Uri "https://$SiteAddress/" -UseBasicParsing -TimeoutSec 15
+            $refs = [regex]::Matches($page.Content, '(?:src|href)="(/[^"]+)"') |
+                    ForEach-Object { $_.Groups[1].Value } |
+                    Sort-Object -Unique
+            if (-not $refs) { throw 'index.html references no local asset at all.' }
+
+            foreach ($ref in $refs) {
+                try {
+                    $a = Invoke-WebRequest -Uri "https://$SiteAddress$ref" -UseBasicParsing -TimeoutSec 15
+                    if ($a.StatusCode -ne 200) { $missing += "$ref -> HTTP $($a.StatusCode)" }
+                } catch {
+                    $missing += "$ref -> $($_.Exception.Message)"
+                }
+            }
+            if ($missing.Count -gt 0) {
+                Write-Host ''
+                Write-Host '    [FAIL] The page loads but its assets do not:' -ForegroundColor Red
+                foreach ($m in $missing) { Write-Host "           $m" -ForegroundColor Red }
+                Write-Host '    The site will render blank. Caddy and the backend are up, so this' -ForegroundColor Red
+                Write-Host '    is a build/serving mismatch, not a reason to roll back to IIS.' -ForegroundColor Red
+                Write-Host "    Check that $RepoRoot\frontend\dist matches what Caddy serves." -ForegroundColor Red
+                exit 1
+            }
+            Write-Ok "all $($refs.Count) referenced assets served"
+        } catch {
+            Write-Warn "could not verify the assets: $($_.Exception.Message)"
+        }
+
+        # Documents must not be cached, or a browser reuses an index.html pointing
+        # at asset hashes that no longer exist - the same blank page, without a
+        # service worker involved.
+        try {
+            $doc = Invoke-WebRequest -Uri "https://$SiteAddress/" -UseBasicParsing -TimeoutSec 10
+            $cc = if ($doc.Headers.ContainsKey('Cache-Control')) { $doc.Headers['Cache-Control'] } else { $null }
+            if ($cc -and $cc -match 'no-cache|no-store') {
+                Write-Ok "index.html sent Cache-Control: $cc"
+            } else {
+                Write-Warn ("index.html was served with Cache-Control '$cc' - returning visitors " +
+                            'may reuse a stale document after the next deploy.')
+            }
+        } catch { }
+
+        # A cache-first service worker outlives the deploy that fixes it, because a
+        # worker is only reinstalled when its own bytes change. This site shipped
+        # one and went blank for every returning visitor; refuse to leave another
+        # in place unnoticed.
+        try {
+            $sw = Invoke-WebRequest -Uri "https://$SiteAddress/sw.js" -UseBasicParsing -TimeoutSec 10
+            if ($sw.StatusCode -eq 200 -and $sw.Content -match 'caches\.match\(') {
+                Write-Warn ('/sw.js answers requests from a cache. If it caches the document, a ' +
+                            'returning visitor can be served the previous build indefinitely.')
+            } else {
+                Write-Ok 'no cache-first service worker is being served'
+            }
+        } catch { }
     } else {
         Write-Warn "https://$SiteAddress/health did not respond yet."
         Write-Warn 'Certificates can lag; check the log before assuming failure:'
@@ -592,8 +698,8 @@ try {
     Write-Host "  Portfolio:  https://$PortfolioAddress"
     Write-Host "  Logs:       $RepoRoot\logs\"
     Write-Host ''
-    Write-Host '  Open the app and check the Live Inference page - the WebSocket'
-    Write-Host '  and camera are the parts a proxy misconfiguration breaks first.'
+    Write-Host '  Open the app and check the Playground - video input uses the WebSocket'
+    Write-Host '  and the camera, the parts a proxy misconfiguration breaks first.'
     Write-Host ''
     Write-Host '  Roll back to IIS:  Stop-ScheduledTask VisionEdge-Caddy; Start-Service W3SVC'
 }

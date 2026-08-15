@@ -12,8 +12,10 @@ from app.instrumentation.energy import (
 )
 from app.instrumentation.environment import (
     _ALLOWED_ENV_VARS,
+    _commit_from_git_dir,
     collect_hardware,
     collect_software,
+    git_commit,
 )
 from app.instrumentation.memory import build_memory_metrics, snapshot
 from app.instrumentation.probes.gpu import NvmlProbe
@@ -384,3 +386,40 @@ class TestEnvironmentCapture:
         assert "MY_SECRET_API_KEY" not in captured
         assert captured.get("OMP_NUM_THREADS") == "4"
         assert set(captured).issubset(set(_ALLOWED_ENV_VARS))
+
+
+class TestDeployedCommit:
+    """The deploy proves it is talking to the process it just started by comparing
+    /health's commit against the one it checked out. On the VPS the backend runs as
+    SYSTEM, where git is off PATH and the worktree belongs to another account, so
+    that check quietly degraded to "cannot verify" — which is how a stale process
+    survives a restart unnoticed."""
+
+    def test_commit_is_resolved_without_the_git_binary(self, monkeypatch):
+        expected = _run_git_head()
+        if expected is None:
+            pytest.skip("not running inside a git worktree")
+
+        monkeypatch.setattr("app.instrumentation.environment._run_git", lambda *a: None)
+        assert git_commit() == expected
+
+    def test_git_dir_reader_agrees_with_git_itself(self):
+        expected = _run_git_head()
+        if expected is None:
+            pytest.skip("not running inside a git worktree")
+        assert _commit_from_git_dir() == expected
+
+
+def _run_git_head() -> str | None:
+    import subprocess
+
+    from app.core.config import REPO_ROOT
+
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
+            capture_output=True, text=True, timeout=5, check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result.stdout.strip() or None if result.returncode == 0 else None
