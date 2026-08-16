@@ -38,9 +38,15 @@ self.addEventListener('activate', (event) => {
       await self.clients.claim();
       await self.registration.unregister();
 
-      // Reload whatever is open. Without this the visitor keeps staring at the
-      // blank page until they reload by hand — the fix would work but look like
-      // it had not.
+      // Reload open windows ONLY when there was a stale cache to clear.
+      //
+      // Reloading unconditionally is what turned this file into a reload loop:
+      // paired with a page that re-registered on load, each activation reloaded
+      // the page, which registered another worker, which reloaded again. Gating on
+      // real work means a worker that finds nothing to clean exits quietly, so the
+      // cycle cannot repeat even if something registers this file again.
+      if (keys.length === 0) return;
+
       const clients = await self.clients.matchAll({ type: 'window' });
       for (const client of clients) {
         client.navigate(client.url).catch(() => {

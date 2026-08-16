@@ -8,24 +8,25 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 
-// No service worker is registered any more, and any surviving one is removed.
+// This page NEVER registers a service worker. It only removes one.
 //
-// The previous worker was cache-first over every GET, so after a deploy it kept
-// serving the old index.html against asset hashes that no longer existed and the
-// page rendered blank. Registering `/sw.js` is still what retires it: that file is
-// now a kill switch that clears the caches and unregisters itself. Unregistering
-// from here as well covers the browser that has a worker but never fetches the
-// update — belt and braces, because the failure mode is an invisible one.
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+// Registering here is what put the site in a reload loop: `/sw.js` is a kill
+// switch that unregisters itself and navigates its clients, so every load created
+// a worker that immediately retired itself and reloaded the page, which created
+// the next one. Registration and self-removal fought each other forever.
+//
+// A browser that still carries the old cache-first worker does not need this line
+// to be rescued: it re-fetches /sw.js as its own update check on navigation, gets
+// the kill switch, and that worker cleans up. This is only for the case where a
+// registration survives without ever activating.
+if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      navigator.serviceWorker
-        .getRegistrations()
-        .then((registrations) => registrations.forEach((r) => r.unregister()))
-        .catch(() => {
-          /* Nothing further this page can do; a hard reload still recovers. */
-        });
-    });
+    navigator.serviceWorker
+      .getRegistrations()
+      .then((registrations) => registrations.forEach((registration) => registration.unregister()))
+      .catch(() => {
+        /* Nothing further this page can do; a hard reload still recovers. */
+      });
   });
 }
 
