@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 import { Icon } from './components/Icon';
@@ -72,35 +73,38 @@ export default function App() {
         <TopBar onMenu={() => setMobileNavOpen(true)} />
         <main className="flex-1 overflow-y-auto px-3 py-4 sm:px-6 sm:py-5 lg:px-8">
           <div className="mx-auto max-w-6xl pb-16">
-            <Routes>
-              <Route path="/" element={<PlaygroundPage />} />
-              <Route path="/pipeline" element={<PipelinePage />} />
-              <Route path="/performance" element={<PerformancePage />} />
-              <Route path="/models" element={<ModelsPage />} />
-              <Route path="/environment" element={<EnvironmentPage />} />
-              <Route path="/runs/:runId" element={<RunDetailPage />} />
+            {/* Keyed on the path so navigating away from a crashed page clears it. */}
+            <ErrorBoundary resetKey={location.pathname}>
+              <Routes>
+                <Route path="/" element={<PlaygroundPage />} />
+                <Route path="/pipeline" element={<PipelinePage />} />
+                <Route path="/performance" element={<PerformancePage />} />
+                <Route path="/models" element={<ModelsPage />} />
+                <Route path="/environment" element={<EnvironmentPage />} />
+                <Route path="/runs/:runId" element={<RunDetailPage />} />
 
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/about" element={<ArchitecturePage />} />
-              <Route path="/about/research" element={<ResearchNotesPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/about" element={<ArchitecturePage />} />
+                <Route path="/about/research" element={<ResearchNotesPage />} />
 
-              {/* Pre-consolidation URLs, kept so existing links and bookmarks land
+                {/* Pre-consolidation URLs, kept so existing links and bookmarks land
                   on the page that absorbed the functionality. */}
-              <Route path="/live" element={<Navigate to="/" replace />} />
-              <Route path="/assistant" element={<Navigate to="/" replace />} />
-              <Route path="/classes" element={<Navigate to="/" replace />} />
-              <Route path="/capabilities" element={<Navigate to="/environment" replace />} />
-              <Route path="/lab/system" element={<Navigate to="/environment" replace />} />
-              <Route path="/lab/models" element={<Navigate to="/models" replace />} />
-              <Route path="/lab/run" element={<Navigate to="/performance" replace />} />
-              <Route path="/lab/results" element={<Navigate to="/performance" replace />} />
-              <Route path="/lab/results/:runId" element={<LegacyRunRedirect />} />
-              <Route path="/benchmarks" element={<Navigate to="/performance" replace />} />
-              <Route path="/architecture" element={<Navigate to="/about" replace />} />
-              <Route path="/research" element={<Navigate to="/about/research" replace />} />
+                <Route path="/live" element={<Navigate to="/" replace />} />
+                <Route path="/assistant" element={<Navigate to="/" replace />} />
+                <Route path="/classes" element={<Navigate to="/" replace />} />
+                <Route path="/capabilities" element={<Navigate to="/environment" replace />} />
+                <Route path="/lab/system" element={<Navigate to="/environment" replace />} />
+                <Route path="/lab/models" element={<Navigate to="/models" replace />} />
+                <Route path="/lab/run" element={<Navigate to="/performance" replace />} />
+                <Route path="/lab/results" element={<Navigate to="/performance" replace />} />
+                <Route path="/lab/results/:runId" element={<LegacyRunRedirect />} />
+                <Route path="/benchmarks" element={<Navigate to="/performance" replace />} />
+                <Route path="/architecture" element={<Navigate to="/about" replace />} />
+                <Route path="/research" element={<Navigate to="/about/research" replace />} />
 
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </ErrorBoundary>
           </div>
         </main>
       </div>

@@ -155,7 +155,15 @@ export default function PlaygroundPage() {
       resolved.device !== config.device ||
       resolved.precision !== config.precision
     ) {
-      setConfig(resolved);
+      // resolveConfig speaks the API's snake_case; the store speaks camelCase.
+      // Spreading it straight in wrote a stray `runtime_id` key and left
+      // `runtimeId` empty, so the condition above stayed true on every pass and
+      // this effect looped until React tore the tree down — a blank page.
+      setConfig({
+        runtimeId: resolved.runtime_id,
+        device: resolved.device,
+        precision: resolved.precision,
+      });
     }
   }, [availability, config, setConfig]);
 
